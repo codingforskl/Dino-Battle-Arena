@@ -80,7 +80,7 @@
 }
 
 .forest-bg {
-  background: linear-gradient(180deg, #0a1410 0%, #112117 50%, #0d1a12 100%);
+  background-color: #050e08;
   position: relative;
   overflow: hidden;
 }
@@ -88,14 +88,39 @@
 .forest-bg::before {
   content: "";
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image: 
-    radial-gradient(circle at 20% 30%, rgba(255, 180, 50, 0.05) 0%, transparent 20%),
-    radial-gradient(circle at 80% 40%, rgba(255, 200, 80, 0.03) 0%, transparent 30%);
+  inset: 0;
+  background-image: url('/src/assets/forest-bg.png');
+  background-size: cover;
+  background-position: center bottom;
+  opacity: 0.55;
   pointer-events: none;
+  z-index: 0;
+}
+
+.forest-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 14, 8, 0.55) 0%,
+    rgba(5, 14, 8, 0.15) 40%,
+    rgba(5, 14, 8, 0.45) 85%,
+    rgba(5, 14, 8, 0.85) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
 }
 
 .ground-layer {
-  background: linear-gradient(180deg, #1b2e21 0%, #0f1c14 100%);
-  border-top: 4px solid #2d4533;
+  position: relative;
+  z-index: 2;
+}
+
+.ground-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(5, 14, 8, 0.7) 100%);
+  pointer-events: none;
 }

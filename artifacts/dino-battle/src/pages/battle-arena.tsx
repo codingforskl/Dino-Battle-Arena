@@ -4,8 +4,8 @@ import { DINOSAURS } from '@/lib/dino-data';
 import { getRequiredBites } from '@/lib/game-engine';
 import { DinoSvg } from '@/components/dino-svg';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
+import forestBg from '../assets/forest-bg.png';
 
 export default function BattleArena() {
   const ctx = useContext(GameContext);
@@ -31,14 +31,11 @@ export default function BattleArena() {
       if (!ctx.state.winner) {
         const aiState = ctx.state.opponent!;
         const aiBase = DINOSAURS[aiState.dinoId];
-        
-        // Is stunned?
         const isStunned = aiState.statusEffects.some(e => e.type === 'stunned');
         if (isStunned) {
-           dispatch({ type: 'REST', attacker: 'opponent' });
-           return;
+          dispatch({ type: 'REST', attacker: 'opponent' });
+          return;
         }
-
         const validAbilities = aiBase.abilities.filter(a => a.staminaCost <= aiState.stamina);
         if (validAbilities.length > 0) {
           const randomAbility = validAbilities[Math.floor(Math.random() * validAbilities.length)];
@@ -56,9 +53,6 @@ export default function BattleArena() {
     setAnimatingPlayer(true);
     setTimeout(() => setAnimatingPlayer(false), 500);
     dispatch({ type: 'USE_ABILITY', abilityId, attacker: 'player' });
-    
-    // Determine speed to see if AI responds
-    // Note: Simple turn structure for presentation: Player -> AI
     triggerAI();
   };
 
@@ -69,20 +63,35 @@ export default function BattleArena() {
 
   const pRequiredBites = getRequiredBites(state.player.dinoId, state.opponent.dinoId);
   const oRequiredBites = getRequiredBites(state.opponent.dinoId, state.player.dinoId);
-  
-  // Calculate heights relative to largest (4m)
-  const maxH = 4.0;
-  const pScale = (playerBase.height / maxH) * 100 + 40; // 40-140%
-  const oScale = (opponentBase.height / maxH) * 100 + 40; 
 
-  const isPlayerTurn = !state.winner && state.turnNumber % 1 === 0; // Simplified
-  
+  // Scale dino heights proportionally — max 4m = 280px, min 0.5m = ~80px
+  const maxH = 4.0;
+  const pImgH = Math.round((playerBase.height / maxH) * 280 + 60);
+  const oImgH = Math.round((opponentBase.height / maxH) * 280 + 60);
+
   return (
-    <div className="flex-1 flex flex-col forest-bg relative overflow-hidden h-screen">
+    <div
+      className="flex-1 flex flex-col relative overflow-hidden"
+      style={{ minHeight: '100vh' }}
+    >
+      {/* Forest background */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url(${forestBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center bottom',
+        }}
+      />
+      {/* Atmospheric overlay */}
+      <div className="absolute inset-0 z-0" style={{
+        background: 'linear-gradient(180deg, rgba(3,10,5,0.6) 0%, rgba(3,10,5,0.1) 35%, rgba(3,10,5,0.35) 70%, rgba(3,10,5,0.88) 100%)'
+      }} />
+
       {/* Top Stats */}
-      <div className="flex justify-between p-6 bg-black/60 backdrop-blur-md border-b border-primary/20 z-20">
-        <StatPanel 
-          name={playerBase.name} 
+      <div className="relative z-20 flex justify-between p-4 bg-black/55 backdrop-blur-md border-b border-amber-500/20">
+        <StatPanel
+          name={playerBase.name}
           hp={state.player.hp} maxHp={playerBase.maxHp}
           stamina={state.player.stamina} maxStamina={playerBase.maxStamina}
           speed={playerBase.baseSpeed}
@@ -93,11 +102,11 @@ export default function BattleArena() {
           statusEffects={state.player.statusEffects}
         />
         <div className="flex flex-col justify-center items-center px-4">
-          <span className="text-xl font-black text-amber-500 uppercase tracking-[0.2em] opacity-80">VS</span>
-          <span className="text-xs text-white/50 uppercase mt-2">Turn {state.turnNumber}</span>
+          <span className="text-2xl font-black text-amber-400 uppercase tracking-[0.3em]">VS</span>
+          <span className="text-xs text-white/40 uppercase tracking-widest mt-1">Turn {state.turnNumber}</span>
         </div>
-        <StatPanel 
-          name={opponentBase.name} 
+        <StatPanel
+          name={opponentBase.name}
           hp={state.opponent.hp} maxHp={opponentBase.maxHp}
           stamina={state.opponent.stamina} maxStamina={opponentBase.maxStamina}
           speed={opponentBase.baseSpeed}
@@ -109,54 +118,83 @@ export default function BattleArena() {
         />
       </div>
 
-      {/* Arena */}
-      <div className="flex-1 relative flex items-end justify-between px-16 pb-32 ground-layer">
-        {/* Environment details */}
-        <div className="absolute top-10 left-10 w-32 h-64 bg-green-900/10 rounded-full blur-3xl mix-blend-screen pointer-events-none"></div>
-        <div className="absolute top-20 right-20 w-48 h-48 bg-amber-600/10 rounded-full blur-3xl mix-blend-screen pointer-events-none"></div>
-
-        <motion.div 
-          className="relative z-10 drop-shadow-[0_0_20px_rgba(255,180,50,0.3)]"
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ 
-            x: animatingPlayer ? 50 : 0, 
+      {/* Arena — dinos face each other */}
+      <div className="relative z-10 flex-1 flex items-end justify-between px-8 pb-4">
+        {/* Player dino — left side, faces right */}
+        <motion.div
+          className="relative flex-shrink-0"
+          initial={{ x: -120, opacity: 0 }}
+          animate={{
+            x: animatingPlayer ? 40 : 0,
             opacity: 1,
-            scale: state.player.hp <= 0 ? 0.8 : 1,
-            rotate: state.player.hp <= 0 ? -15 : 0
+            scale: state.player.hp <= 0 ? 0.75 : 1,
+            rotate: state.player.hp <= 0 ? -20 : 0,
           }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          style={{ width: `${pScale * 3}px`, height: `${pScale * 3}px` }}
+          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+          style={{ filter: 'drop-shadow(0 8px 32px rgba(255,180,50,0.35))' }}
         >
-          <DinoSvg dinoId={state.player.dinoId} className="w-full h-full text-primary" />
-          {state.player.hp <= 0 && <div className="absolute inset-0 bg-red-500/50 mix-blend-multiply rounded-full blur-xl"></div>}
+          <DinoSvg
+            dinoId={state.player.dinoId}
+            style={{ height: pImgH, width: 'auto' }}
+          />
+          {state.player.hp <= 0 && (
+            <div className="absolute inset-0 bg-red-700/40 rounded-2xl blur-xl" />
+          )}
         </motion.div>
 
-        <motion.div 
-          className="relative z-10 drop-shadow-[0_0_20px_rgba(255,50,50,0.3)] transform -scale-x-100"
-          initial={{ x: 100, opacity: 0 }}
-          animate={{ 
-            x: animatingOpponent ? 50 : 0, // 50 to the left (because of scale-x-100 it looks like moving forward)
+        {/* Opponent dino — right side, flipped to face left */}
+        <motion.div
+          className="relative flex-shrink-0"
+          initial={{ x: 120, opacity: 0 }}
+          animate={{
+            x: animatingOpponent ? -40 : 0,
             opacity: 1,
-            scale: state.opponent.hp <= 0 ? 0.8 : 1,
-            rotate: state.opponent.hp <= 0 ? -15 : 0
+            scale: state.opponent.hp <= 0 ? 0.75 : 1,
+            rotate: state.opponent.hp <= 0 ? 20 : 0,
           }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          style={{ width: `${oScale * 3}px`, height: `${oScale * 3}px` }}
+          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+          style={{ filter: 'drop-shadow(0 8px 32px rgba(220,50,50,0.4))' }}
         >
-          <DinoSvg dinoId={state.opponent.dinoId} className="w-full h-full text-destructive" />
+          <DinoSvg
+            dinoId={state.opponent.dinoId}
+            flipped
+            style={{ height: oImgH, width: 'auto' }}
+          />
+          {state.opponent.hp <= 0 && (
+            <div className="absolute inset-0 bg-red-700/40 rounded-2xl blur-xl" />
+          )}
         </motion.div>
-        
+
+        {/* Victory / Defeat overlay */}
         <AnimatePresence>
           {state.winner && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-50 backdrop-blur-md"
             >
-              <h2 className={`text-7xl font-black uppercase tracking-widest mb-6 ${state.winner === 'player' ? 'text-primary' : 'text-destructive'} drop-shadow-2xl`}>
+              <motion.h2
+                initial={{ y: -30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.15 }}
+                className={`text-8xl font-black uppercase tracking-widest mb-4 drop-shadow-2xl ${state.winner === 'player' ? 'text-amber-400' : 'text-red-500'}`}
+              >
                 {state.winner === 'player' ? 'Victory' : 'Defeat'}
-              </h2>
-              <Button size="lg" className="text-xl px-10 py-6" onClick={() => dispatch({ type: 'RESET' })}>
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-white/60 text-lg mb-8 uppercase tracking-widest"
+              >
+                {state.winner === 'player' ? playerBase.name : opponentBase.name} wins the arena
+              </motion.p>
+              <Button
+                size="lg"
+                className="text-xl px-10 py-6"
+                data-testid="btn-return"
+                onClick={() => dispatch({ type: 'RESET' })}
+              >
                 Return to Roster
               </Button>
             </motion.div>
@@ -165,51 +203,53 @@ export default function BattleArena() {
       </div>
 
       {/* Controls & Log */}
-      <div className="h-72 bg-card/95 backdrop-blur-md border-t border-primary/20 flex z-20">
-        <div className="flex-1 p-6 grid grid-cols-2 gap-4 border-r border-primary/20">
+      <div className="relative z-20 bg-black/80 backdrop-blur-md border-t border-amber-500/20 flex" style={{ minHeight: 280 }}>
+        <div className="flex-1 p-5 grid grid-cols-2 gap-3 border-r border-amber-500/15 overflow-auto">
           {playerBase.abilities.map(a => {
             const canAfford = state.player!.stamina >= a.staminaCost;
             return (
-              <Button 
-                key={a.id} 
+              <Button
+                key={a.id}
                 variant="outline"
                 data-testid={`btn-ability-${a.id}`}
                 disabled={!canAfford || !!state.winner || state.player!.statusEffects.some(e => e.type === 'stunned')}
                 onClick={() => handlePlayerAction(a.id)}
-                className={`h-auto flex flex-col items-start p-4 ${canAfford ? 'bg-secondary/40 hover:bg-secondary/80 hover:border-primary border-primary/30' : 'bg-muted/10 opacity-50'} transition-all`}
+                className={`h-auto flex flex-col items-start p-4 text-left transition-all ${canAfford ? 'bg-white/5 hover:bg-amber-500/10 hover:border-amber-500/60 border-white/10' : 'bg-black/20 opacity-40'}`}
               >
                 <div className="flex justify-between w-full mb-1">
-                  <span className="font-bold text-primary text-lg">{a.name}</span>
-                  <span className="text-amber-500 font-mono text-sm">{a.staminaCost} STM</span>
+                  <span className="font-bold text-amber-400 text-base">{a.name}</span>
+                  <span className="text-amber-500/70 font-mono text-xs">{a.staminaCost} STM</span>
                 </div>
-                <span className="text-sm text-muted-foreground text-left line-clamp-2">{a.description}</span>
-                {a.damage && <span className="text-xs text-red-400 mt-2 font-mono">DMG: {a.damage}</span>}
+                <span className="text-xs text-white/50 line-clamp-2">{a.description}</span>
+                {a.damage && <span className="text-xs text-red-400/80 mt-1 font-mono">DMG {a.damage}</span>}
               </Button>
             );
           })}
-          <Button 
-            variant="secondary" 
-            className="col-span-2 mt-2 border-dashed border-2 bg-black/30 hover:bg-black/50 py-6 text-lg tracking-widest uppercase"
+          <Button
+            variant="secondary"
+            className="col-span-2 border-dashed border border-white/10 bg-black/20 hover:bg-white/5 py-4 text-base tracking-widest uppercase text-white/40 hover:text-white/70"
             disabled={!!state.winner || state.player!.statusEffects.some(e => e.type === 'stunned')}
             onClick={handleRest}
             data-testid="btn-rest"
           >
-            Rest (Recover 25 Stamina)
+            Rest — Recover 25 Stamina
           </Button>
         </div>
-        <div className="w-96 bg-black/40 p-6 flex flex-col">
-          <h3 className="text-sm font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+
+        <div className="w-80 flex flex-col p-4">
+          <h3 className="text-xs font-bold text-amber-400/70 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             Battle Log
           </h3>
-          <div className="flex-1 overflow-y-auto pr-2" ref={scrollRef}>
-            <div className="space-y-3">
-              {state.log.map((entry, i) => (
-                <div key={i} className="text-sm text-foreground/90 font-mono leading-relaxed border-l-2 border-primary/30 pl-3">
-                  {entry}
-                </div>
-              ))}
-            </div>
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1" ref={scrollRef}>
+            {state.log.map((entry, i) => (
+              <div
+                key={i}
+                className="text-xs text-white/70 font-mono leading-relaxed border-l border-amber-500/20 pl-2"
+              >
+                {entry}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -217,67 +257,63 @@ export default function BattleArena() {
   );
 }
 
-function StatPanel({ name, hp, maxHp, stamina, maxStamina, speed, isPlayer, biteProgress, requiredBites, height, statusEffects }: { name: string, hp: number, maxHp: number, stamina: number, maxStamina: number, speed: number, isPlayer: boolean, biteProgress: number, requiredBites: number, height: number, statusEffects: any[] }) {
-  const hpPercent = Math.max(0, (hp / maxHp) * 100);
-  const staminaPercent = Math.max(0, (stamina / maxStamina) * 100);
-  const isStaminaLow = stamina < 20;
+function StatPanel({
+  name, hp, maxHp, stamina, maxStamina, speed,
+  isPlayer, biteProgress, requiredBites, height, statusEffects
+}: {
+  name: string; hp: number; maxHp: number; stamina: number; maxStamina: number;
+  speed: number; isPlayer: boolean; biteProgress: number; requiredBites: number;
+  height: number; statusEffects: { type: string; duration: number }[];
+}) {
+  const hpPct = Math.max(0, (hp / maxHp) * 100);
+  const stPct = Math.max(0, (stamina / maxStamina) * 100);
+  const lowStamina = stamina < 20;
 
   return (
-    <div className={`w-72 ${isPlayer ? 'text-left' : 'text-right'}`}>
-      <div className={`flex items-end gap-3 mb-3 ${!isPlayer && 'flex-row-reverse'}`}>
-        <h3 className="font-black text-2xl text-white uppercase tracking-wider">{name}</h3>
-        <span className="text-xs text-muted-foreground font-mono mb-1">{height}m</span>
+    <div className={`w-64 ${isPlayer ? 'text-left' : 'text-right'}`}>
+      <div className={`flex items-baseline gap-2 mb-2 ${!isPlayer && 'flex-row-reverse'}`}>
+        <h3 className="font-black text-xl text-white uppercase tracking-wider leading-none">{name}</h3>
+        <span className="text-xs text-white/30 font-mono">{height}m</span>
       </div>
-      
-      <div className="space-y-3 bg-black/40 p-4 rounded-lg border border-white/5">
+      <div className="space-y-2 bg-black/50 p-3 rounded-lg border border-white/5">
         <div>
-          <div className="flex justify-between text-xs mb-1 font-mono uppercase font-bold">
-            <span className="text-red-400">Health</span>
-            <span className="text-white">{hp} / {maxHp}</span>
+          <div className={`flex justify-between text-[10px] mb-1 font-mono uppercase font-bold ${!isPlayer && 'flex-row-reverse'}`}>
+            <span className="text-red-400">HP</span>
+            <span className="text-white/80">{hp}/{maxHp}</span>
           </div>
-          <div className="h-3 bg-gray-900 rounded-full overflow-hidden border border-black shadow-inner">
-            <div 
-              className={`h-full transition-all duration-500 ease-out ${hpPercent > 50 ? 'bg-red-500' : hpPercent > 20 ? 'bg-orange-500' : 'bg-red-700 animate-pulse'}`}
-              style={{ width: `${hpPercent}%` }}
+          <div className="h-2.5 bg-black/60 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 ${hpPct > 50 ? 'bg-red-500' : hpPct > 20 ? 'bg-orange-500' : 'bg-red-700 animate-pulse'}`}
+              style={{ width: `${hpPct}%` }}
             />
           </div>
         </div>
-        
         <div>
-          <div className="flex justify-between text-xs mb-1 font-mono uppercase font-bold">
-            <span className={`${isStaminaLow ? 'text-red-400 animate-pulse' : 'text-green-400'}`}>Stamina</span>
-            <span className="text-white">{stamina} / {maxStamina}</span>
+          <div className={`flex justify-between text-[10px] mb-1 font-mono uppercase font-bold ${!isPlayer && 'flex-row-reverse'}`}>
+            <span className={lowStamina ? 'text-red-400 animate-pulse' : 'text-emerald-400'}>STM</span>
+            <span className="text-white/80">{stamina}/{maxStamina}</span>
           </div>
-          <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-black shadow-inner">
-            <div 
-              className="h-full bg-green-500 transition-all duration-500 ease-out"
-              style={{ width: `${staminaPercent}%` }}
+          <div className="h-2 bg-black/60 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${stPct}%` }}
             />
           </div>
-          {isStaminaLow && <p className="text-[10px] text-red-400 mt-1 text-right">Speed halved!</p>}
         </div>
-
-        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
-          <div className="flex gap-2">
-            <div className="bg-black/50 px-2 py-1 rounded text-xs font-mono border border-white/10" title="Speed">
-              <span className="text-blue-400">SPD:</span> {isStaminaLow ? Math.floor(speed / 2) : speed}
-            </div>
-            {requiredBites > 1 && (
-              <div className="bg-black/50 px-2 py-1 rounded text-xs font-mono border border-white/10" title="Bite Penetration">
-                <span className="text-amber-500">PEN:</span> {biteProgress}/{requiredBites}
-              </div>
-            )}
+        <div className={`flex items-center gap-1.5 pt-1 flex-wrap ${!isPlayer && 'flex-row-reverse'}`}>
+          <div className="bg-black/40 px-1.5 py-0.5 rounded text-[10px] font-mono border border-white/5">
+            <span className="text-blue-400">SPD</span> {lowStamina ? Math.floor(speed / 2) : speed}
           </div>
-          
-          {statusEffects.length > 0 && (
-            <div className="flex gap-1">
-              {statusEffects.map((e, i) => (
-                <span key={i} className="text-[10px] bg-red-900/50 text-red-200 px-1 rounded uppercase">
-                  {e.type}
-                </span>
-              ))}
+          {requiredBites > 1 && (
+            <div className="bg-black/40 px-1.5 py-0.5 rounded text-[10px] font-mono border border-amber-500/20">
+              <span className="text-amber-400">PEN</span> {biteProgress}/{requiredBites}
             </div>
           )}
+          {statusEffects.map((e, i) => (
+            <span key={i} className="text-[10px] bg-red-900/60 text-red-300 px-1 py-0.5 rounded uppercase font-mono">
+              {e.type}
+            </span>
+          ))}
         </div>
       </div>
     </div>
