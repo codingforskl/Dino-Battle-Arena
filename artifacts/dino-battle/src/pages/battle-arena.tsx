@@ -132,10 +132,34 @@ export default function BattleArena() {
           </div>
         </div>
 
+        {/* ── OPPONENT ground platform — back area ── */}
+        <div className="absolute z-8" style={{ right: '8%', bottom: '28%', width: 200, pointerEvents: 'none' }}>
+          <div style={{
+            height: 18,
+            borderRadius: '50%',
+            background: 'linear-gradient(180deg, #6aaa44 0%, #4e8830 60%, #3d6e24 100%)',
+            boxShadow: '0 4px 0 #2d5518, 0 6px 8px rgba(0,0,0,0.35)',
+            border: '1px solid #3d6e24',
+          }} />
+          <div style={{
+            height: 8,
+            marginTop: -2,
+            borderRadius: '0 0 50% 50%',
+            background: 'linear-gradient(180deg, #8B6914 0%, #6b4f10 100%)',
+          }} />
+          {/* Oval ground shadow */}
+          <div style={{
+            height: 8,
+            marginTop: 1,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse, rgba(0,0,0,0.25) 0%, transparent 70%)',
+          }} />
+        </div>
+
         {/* ── OPPONENT DINO — back/upper area ── */}
         <motion.div
           className="absolute z-10"
-          style={{ right: '18%', top: '8%' }}
+          style={{ right: '10%', bottom: 'calc(28% + 22px)' }}
           initial={{ x: 80, opacity: 0 }}
           animate={{
             x: animatingOpponent ? -30 : 0,
@@ -145,19 +169,40 @@ export default function BattleArena() {
           }}
           transition={{ type: 'spring', stiffness: 280, damping: 20 }}
         >
-          <div className="platform-shadow" style={{ width: oImgH * 0.9, height: 12, marginTop: -4 }} />
           <DinoSvg
             dinoId={state.opponent.dinoId}
             flipped
             style={{ height: oImgH, width: 'auto', filter: state.opponent.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(2px 4px 6px rgba(0,0,0,0.35))' }}
           />
-          <div className="platform-shadow" style={{ width: oImgH * 0.9, height: 12, marginTop: -4 }} />
         </motion.div>
+
+        {/* ── PLAYER ground platform — front area ── */}
+        <div className="absolute z-8" style={{ left: '6%', bottom: '4%', width: 240, pointerEvents: 'none' }}>
+          <div style={{
+            height: 22,
+            borderRadius: '50%',
+            background: 'linear-gradient(180deg, #78c450 0%, #5a9e36 60%, #4a8228 100%)',
+            boxShadow: '0 5px 0 #365e1c, 0 8px 10px rgba(0,0,0,0.4)',
+            border: '1px solid #4a8228',
+          }} />
+          <div style={{
+            height: 10,
+            marginTop: -2,
+            borderRadius: '0 0 50% 50%',
+            background: 'linear-gradient(180deg, #9B7914 0%, #7b5f10 100%)',
+          }} />
+          <div style={{
+            height: 10,
+            marginTop: 1,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse, rgba(0,0,0,0.3) 0%, transparent 70%)',
+          }} />
+        </div>
 
         {/* ── PLAYER DINO — front/lower area ── */}
         <motion.div
           className="absolute z-10"
-          style={{ left: '14%', bottom: '2%' }}
+          style={{ left: '8%', bottom: 'calc(4% + 28px)' }}
           initial={{ x: -80, opacity: 0 }}
           animate={{
             x: animatingPlayer ? 40 : 0,
@@ -171,7 +216,6 @@ export default function BattleArena() {
             dinoId={state.player.dinoId}
             style={{ height: pImgH, width: 'auto', filter: state.player.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(2px 6px 8px rgba(0,0,0,0.4))' }}
           />
-          <div className="platform-shadow" style={{ width: pImgH * 1.0, height: 16, marginTop: -6 }} />
         </motion.div>
 
         {/* ── PLAYER STAT BOX — bottom right ── */}

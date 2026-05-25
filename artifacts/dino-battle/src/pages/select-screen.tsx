@@ -71,11 +71,16 @@ export default function SelectScreen() {
             </div>
 
             {/* Dino preview */}
-            <div className="flex items-end justify-center mb-3" style={{ height: 130, background: 'linear-gradient(180deg, #e8f0f8 0%, #d0dcea 100%)', borderRadius: 8, border: '1px solid #c8d4e4' }}>
+            <div className="relative flex items-end justify-center mb-3 overflow-hidden" style={{ height: 130, background: 'linear-gradient(180deg, #c8ddf0 0%, #a8c4e0 100%)', borderRadius: 8, border: '1px solid #c8d4e4' }}>
               <DinoSvg
                 dinoId={selectedPlayer}
-                style={{ height: Math.round((playerDino.height / 4.0) * 65 + 65), width: 'auto', filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.25))' }}
+                style={{ height: Math.round((playerDino.height / 4.0) * 65 + 65), width: 'auto', filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.25))', position: 'relative', zIndex: 2, marginBottom: 16 }}
               />
+              {/* Ground strip */}
+              <div className="absolute bottom-0 left-0 right-0" style={{ zIndex: 1 }}>
+                <div style={{ height: 14, background: 'linear-gradient(180deg, #7dc847 0%, #5a9e2e 100%)', borderTop: '2px solid #4a8224' }} />
+                <div style={{ height: 6, background: 'linear-gradient(180deg, #8B6914 0%, #6b4f0e 100%)' }} />
+              </div>
             </div>
 
             {/* Stats */}
@@ -121,12 +126,16 @@ export default function SelectScreen() {
             </div>
 
             {/* Dino preview */}
-            <div className="flex items-end justify-center mb-3" style={{ height: 130, background: 'linear-gradient(180deg, #f8eae8 0%, #ead8d4 100%)', borderRadius: 8, border: '1px solid #e4c8c4' }}>
+            <div className="relative flex items-end justify-center mb-3 overflow-hidden" style={{ height: 130, background: 'linear-gradient(180deg, #f0d8d4 0%, #dcc4c0 100%)', borderRadius: 8, border: '1px solid #e4c8c4' }}>
               <DinoSvg
                 dinoId={selectedOpponent}
                 flipped
-                style={{ height: Math.round((opponentDino.height / 4.0) * 65 + 65), width: 'auto', filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.25))' }}
+                style={{ height: Math.round((opponentDino.height / 4.0) * 65 + 65), width: 'auto', filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.25))', position: 'relative', zIndex: 2, marginBottom: 16 }}
               />
+              <div className="absolute bottom-0 left-0 right-0" style={{ zIndex: 1 }}>
+                <div style={{ height: 14, background: 'linear-gradient(180deg, #7dc847 0%, #5a9e2e 100%)', borderTop: '2px solid #4a8224' }} />
+                <div style={{ height: 6, background: 'linear-gradient(180deg, #8B6914 0%, #6b4f0e 100%)' }} />
+              </div>
             </div>
 
             {/* Stats */}
