@@ -21,7 +21,8 @@ function AppContent() {
     turnNumber: 0,
     log: [],
     winner: null,
-    phase: 'select'
+    phase: 'select',
+    lastAttackerWasPlayer: false,
   });
 
   return (

@@ -24,3 +24,21 @@ id = "LdNX8pNZurbRrXlyuIr7v"
 uri = "file://artifacts/dino-battle/src/assets/forest-bg.png"
 type = "image"
 title = "pokemon style battle arena"
+
+[[generated]]
+id = "qoBc7gpzfAjyRXWe0WwHM"
+uri = "file://attached_assets/generated_images/tyrannosaurus_rex_dinosaur_cel_48a1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ng6GsTf6KpenY7pxa6A9k"
+uri = "file://attached_assets/generated_images/tyrannosaurus_rex_dinosaur_cel_8ffe.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ht3YNQbzdEQXV974KGRIw"
+uri = "file://attached_assets/generated_images/pterodactylus_pterosaur_dinosaur_cel_fdfe.png"
+type = "image"
+title = "generated_image"

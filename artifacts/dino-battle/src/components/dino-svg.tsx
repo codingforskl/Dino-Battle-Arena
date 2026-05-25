@@ -2,11 +2,15 @@ import { DinoId } from '../lib/dino-data';
 import velociraptor from '../assets/velociraptor.png';
 import giganotosaurus from '../assets/giganotosaurus.png';
 import spinosaurus from '../assets/spinosaurus.png';
+import trex from '../assets/trex.png';
+import pterodactylus from '../assets/pterodactylus.png';
 
 const DINO_IMAGES: Record<DinoId, string> = {
   velociraptor,
   giganotosaurus,
   spinosaurus,
+  trex,
+  pterodactylus,
 };
 
 interface DinoImgProps {
