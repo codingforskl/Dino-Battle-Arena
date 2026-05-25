@@ -3,21 +3,19 @@ import { GameContext } from '@/App';
 import { DINOSAURS } from '@/lib/dino-data';
 import { getRequiredBites } from '@/lib/game-engine';
 import { DinoSvg } from '@/components/dino-svg';
-import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import forestBg from '../assets/forest-bg.png';
 
 export default function BattleArena() {
   const ctx = useContext(GameContext);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [animatingPlayer, setAnimatingPlayer] = useState(false);
   const [animatingOpponent, setAnimatingOpponent] = useState(false);
+  const [lastLog, setLastLog] = useState('');
 
   const logLength = ctx?.state.log.length ?? 0;
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const log = ctx?.state.log ?? [];
+    if (log.length > 0) setLastLog(log[log.length - 1]);
   }, [logLength]);
 
   if (!ctx || !ctx.state.player || !ctx.state.opponent) return null;
@@ -38,20 +36,20 @@ export default function BattleArena() {
         }
         const validAbilities = aiBase.abilities.filter(a => a.staminaCost <= aiState.stamina);
         if (validAbilities.length > 0) {
-          const randomAbility = validAbilities[Math.floor(Math.random() * validAbilities.length)];
+          const pick = validAbilities[Math.floor(Math.random() * validAbilities.length)];
           setAnimatingOpponent(true);
-          setTimeout(() => setAnimatingOpponent(false), 500);
-          dispatch({ type: 'USE_ABILITY', abilityId: randomAbility.id, attacker: 'opponent' });
+          setTimeout(() => setAnimatingOpponent(false), 600);
+          dispatch({ type: 'USE_ABILITY', abilityId: pick.id, attacker: 'opponent' });
         } else {
           dispatch({ type: 'REST', attacker: 'opponent' });
         }
       }
-    }, 1200);
+    }, 1000);
   };
 
-  const handlePlayerAction = (abilityId: string) => {
+  const handleAction = (abilityId: string) => {
     setAnimatingPlayer(true);
-    setTimeout(() => setAnimatingPlayer(false), 500);
+    setTimeout(() => setAnimatingPlayer(false), 600);
     dispatch({ type: 'USE_ABILITY', abilityId, attacker: 'player' });
     triggerAI();
   };
@@ -64,258 +62,278 @@ export default function BattleArena() {
   const pRequiredBites = getRequiredBites(state.player.dinoId, state.opponent.dinoId);
   const oRequiredBites = getRequiredBites(state.opponent.dinoId, state.player.dinoId);
 
-  // Scale dino heights proportionally — max 4m = 280px, min 0.5m = ~80px
   const maxH = 4.0;
-  const pImgH = Math.round((playerBase.height / maxH) * 280 + 60);
-  const oImgH = Math.round((opponentBase.height / maxH) * 280 + 60);
+  // Opponent: smaller (far away), Player: bigger (close up) — Pokemon perspective
+  const oImgH = Math.round((opponentBase.height / maxH) * 140 + 50);
+  const pImgH = Math.round((playerBase.height / maxH) * 180 + 70);
+
+  const playerBlocked = !!state.winner || state.player.statusEffects.some(e => e.type === 'stunned');
 
   return (
-    <div
-      className="flex-1 flex flex-col relative overflow-hidden"
-      style={{ minHeight: '100vh' }}
-    >
-      {/* Forest background */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage: `url(${forestBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center bottom',
-        }}
-      />
-      {/* Atmospheric overlay */}
-      <div className="absolute inset-0 z-0" style={{
-        background: 'linear-gradient(180deg, rgba(3,10,5,0.6) 0%, rgba(3,10,5,0.1) 35%, rgba(3,10,5,0.35) 70%, rgba(3,10,5,0.88) 100%)'
-      }} />
+    <div className="flex-1 flex flex-col" style={{ minHeight: '100vh', background: '#c8d8e8', userSelect: 'none' }}>
 
-      {/* Top Stats */}
-      <div className="relative z-20 flex justify-between p-4 bg-black/55 backdrop-blur-md border-b border-amber-500/20">
-        <StatPanel
-          name={playerBase.name}
-          hp={state.player.hp} maxHp={playerBase.maxHp}
-          stamina={state.player.stamina} maxStamina={playerBase.maxStamina}
-          speed={playerBase.baseSpeed}
-          isPlayer
-          biteProgress={state.player.biteProgress}
-          requiredBites={pRequiredBites}
-          height={playerBase.height}
-          statusEffects={state.player.statusEffects}
+      {/* ── BATTLE FIELD (top ~55%) ── */}
+      <div className="relative overflow-hidden flex-shrink-0" style={{ height: '54vh' }}>
+        {/* Arena background */}
+        <img
+          src={forestBg}
+          alt="arena"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          style={{ opacity: 0.92 }}
+          draggable={false}
         />
-        <div className="flex flex-col justify-center items-center px-4">
-          <span className="text-2xl font-black text-amber-400 uppercase tracking-[0.3em]">VS</span>
-          <span className="text-xs text-white/40 uppercase tracking-widest mt-1">Turn {state.turnNumber}</span>
+        {/* Sky gradient */}
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(180deg, rgba(120,180,240,0.25) 0%, transparent 55%)'
+        }} />
+
+        {/* ── OPPONENT STAT BOX — top left ── */}
+        <div className="absolute top-3 left-3 z-20" style={{ width: 200 }}>
+          <div className="stat-box" style={{ padding: '8px 12px' }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-black text-sm uppercase tracking-wide" style={{ color: '#222' }}>{opponentBase.name}</span>
+              <span className="text-xs font-mono" style={{ color: '#555' }}>{opponentBase.height}m</span>
+            </div>
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>HP</span>
+              <div className="flex-1 hp-bar-container">
+                <div
+                  className={`hp-bar-fill ${getHpClass(state.opponent.hp, opponentBase.maxHp)}`}
+                  style={{ width: `${Math.max(0, (state.opponent.hp / opponentBase.maxHp) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.opponent.hp}</span>
+            </div>
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>ST</span>
+              <div className="flex-1 hp-bar-container">
+                <div
+                  className="stam-bar-fill"
+                  style={{ width: `${Math.max(0, (state.opponent.stamina / opponentBase.maxStamina) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.opponent.stamina}</span>
+            </div>
+            <div className="flex gap-1 mt-1 flex-wrap">
+              <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#e8f0ff', color: '#2266cc', border: '1px solid #99b8ee' }}>
+                SPD {state.opponent.stamina < 20 ? Math.floor(opponentBase.baseSpeed / 2) : opponentBase.baseSpeed}
+              </span>
+              {oRequiredBites > 1 && (
+                <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#fff8e0', color: '#886600', border: '1px solid #ddc050' }}>
+                  PEN {state.opponent.biteProgress}/{oRequiredBites}
+                </span>
+              )}
+              {state.opponent.statusEffects.map((e, i) => (
+                <span key={i} className="text-[9px] px-1 rounded font-bold" style={{ background: '#ffe0e0', color: '#cc2222', border: '1px solid #ffaaaa' }}>
+                  {e.type.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-        <StatPanel
-          name={opponentBase.name}
-          hp={state.opponent.hp} maxHp={opponentBase.maxHp}
-          stamina={state.opponent.stamina} maxStamina={opponentBase.maxStamina}
-          speed={opponentBase.baseSpeed}
-          isPlayer={false}
-          biteProgress={state.opponent.biteProgress}
-          requiredBites={oRequiredBites}
-          height={opponentBase.height}
-          statusEffects={state.opponent.statusEffects}
-        />
-      </div>
 
-      {/* Arena — dinos face each other */}
-      <div className="relative z-10 flex-1 flex items-end justify-between px-8 pb-4">
-        {/* Player dino — left side, faces right */}
+        {/* ── OPPONENT DINO — back/upper area ── */}
         <motion.div
-          className="relative flex-shrink-0"
-          initial={{ x: -120, opacity: 0 }}
+          className="absolute z-10"
+          style={{ right: '18%', top: '8%' }}
+          initial={{ x: 80, opacity: 0 }}
           animate={{
-            x: animatingPlayer ? 40 : 0,
+            x: animatingOpponent ? -30 : 0,
             opacity: 1,
-            scale: state.player.hp <= 0 ? 0.75 : 1,
-            rotate: state.player.hp <= 0 ? -20 : 0,
+            scale: state.opponent.hp <= 0 ? 0.7 : 1,
+            rotate: state.opponent.hp <= 0 ? 25 : 0,
           }}
-          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-          style={{ filter: 'drop-shadow(0 8px 32px rgba(255,180,50,0.35))' }}
+          transition={{ type: 'spring', stiffness: 280, damping: 20 }}
         >
-          <DinoSvg
-            dinoId={state.player.dinoId}
-            style={{ height: pImgH, width: 'auto' }}
-          />
-          {state.player.hp <= 0 && (
-            <div className="absolute inset-0 bg-red-700/40 rounded-2xl blur-xl" />
-          )}
-        </motion.div>
-
-        {/* Opponent dino — right side, flipped to face left */}
-        <motion.div
-          className="relative flex-shrink-0"
-          initial={{ x: 120, opacity: 0 }}
-          animate={{
-            x: animatingOpponent ? -40 : 0,
-            opacity: 1,
-            scale: state.opponent.hp <= 0 ? 0.75 : 1,
-            rotate: state.opponent.hp <= 0 ? 20 : 0,
-          }}
-          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-          style={{ filter: 'drop-shadow(0 8px 32px rgba(220,50,50,0.4))' }}
-        >
+          <div className="platform-shadow" style={{ width: oImgH * 0.9, height: 12, marginTop: -4 }} />
           <DinoSvg
             dinoId={state.opponent.dinoId}
             flipped
-            style={{ height: oImgH, width: 'auto' }}
+            style={{ height: oImgH, width: 'auto', filter: state.opponent.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(2px 4px 6px rgba(0,0,0,0.35))' }}
           />
-          {state.opponent.hp <= 0 && (
-            <div className="absolute inset-0 bg-red-700/40 rounded-2xl blur-xl" />
-          )}
+          <div className="platform-shadow" style={{ width: oImgH * 0.9, height: 12, marginTop: -4 }} />
         </motion.div>
 
-        {/* Victory / Defeat overlay */}
-        <AnimatePresence>
-          {state.winner && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-50 backdrop-blur-md"
-            >
-              <motion.h2
-                initial={{ y: -30, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.15 }}
-                className={`text-8xl font-black uppercase tracking-widest mb-4 drop-shadow-2xl ${state.winner === 'player' ? 'text-amber-400' : 'text-red-500'}`}
-              >
-                {state.winner === 'player' ? 'Victory' : 'Defeat'}
-              </motion.h2>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="text-white/60 text-lg mb-8 uppercase tracking-widest"
-              >
-                {state.winner === 'player' ? playerBase.name : opponentBase.name} wins the arena
-              </motion.p>
-              <Button
-                size="lg"
-                className="text-xl px-10 py-6"
-                data-testid="btn-return"
-                onClick={() => dispatch({ type: 'RESET' })}
-              >
-                Return to Roster
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+        {/* ── PLAYER DINO — front/lower area ── */}
+        <motion.div
+          className="absolute z-10"
+          style={{ left: '14%', bottom: '2%' }}
+          initial={{ x: -80, opacity: 0 }}
+          animate={{
+            x: animatingPlayer ? 40 : 0,
+            opacity: 1,
+            scale: state.player.hp <= 0 ? 0.7 : 1,
+            rotate: state.player.hp <= 0 ? -25 : 0,
+          }}
+          transition={{ type: 'spring', stiffness: 280, damping: 20 }}
+        >
+          <DinoSvg
+            dinoId={state.player.dinoId}
+            style={{ height: pImgH, width: 'auto', filter: state.player.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(2px 6px 8px rgba(0,0,0,0.4))' }}
+          />
+          <div className="platform-shadow" style={{ width: pImgH * 1.0, height: 16, marginTop: -6 }} />
+        </motion.div>
 
-      {/* Controls & Log */}
-      <div className="relative z-20 bg-black/80 backdrop-blur-md border-t border-amber-500/20 flex" style={{ minHeight: 280 }}>
-        <div className="flex-1 p-5 grid grid-cols-2 gap-3 border-r border-amber-500/15 overflow-auto">
-          {playerBase.abilities.map(a => {
-            const canAfford = state.player!.stamina >= a.staminaCost;
-            return (
-              <Button
-                key={a.id}
-                variant="outline"
-                data-testid={`btn-ability-${a.id}`}
-                disabled={!canAfford || !!state.winner || state.player!.statusEffects.some(e => e.type === 'stunned')}
-                onClick={() => handlePlayerAction(a.id)}
-                className={`h-auto flex flex-col items-start p-4 text-left transition-all ${canAfford ? 'bg-white/5 hover:bg-amber-500/10 hover:border-amber-500/60 border-white/10' : 'bg-black/20 opacity-40'}`}
-              >
-                <div className="flex justify-between w-full mb-1">
-                  <span className="font-bold text-amber-400 text-base">{a.name}</span>
-                  <span className="text-amber-500/70 font-mono text-xs">{a.staminaCost} STM</span>
-                </div>
-                <span className="text-xs text-white/50 line-clamp-2">{a.description}</span>
-                {a.damage && <span className="text-xs text-red-400/80 mt-1 font-mono">DMG {a.damage}</span>}
-              </Button>
-            );
-          })}
-          <Button
-            variant="secondary"
-            className="col-span-2 border-dashed border border-white/10 bg-black/20 hover:bg-white/5 py-4 text-base tracking-widest uppercase text-white/40 hover:text-white/70"
-            disabled={!!state.winner || state.player!.statusEffects.some(e => e.type === 'stunned')}
-            onClick={handleRest}
-            data-testid="btn-rest"
-          >
-            Rest — Recover 25 Stamina
-          </Button>
+        {/* ── PLAYER STAT BOX — bottom right ── */}
+        <div className="absolute bottom-3 right-3 z-20" style={{ width: 210 }}>
+          <div className="stat-box" style={{ padding: '8px 12px' }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-black text-sm uppercase tracking-wide" style={{ color: '#222' }}>{playerBase.name}</span>
+              <span className="text-xs font-mono" style={{ color: '#555' }}>{playerBase.height}m</span>
+            </div>
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>HP</span>
+              <div className="flex-1 hp-bar-container">
+                <div
+                  className={`hp-bar-fill ${getHpClass(state.player.hp, playerBase.maxHp)}`}
+                  style={{ width: `${Math.max(0, (state.player.hp / playerBase.maxHp) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.player.hp}</span>
+            </div>
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>ST</span>
+              <div className="flex-1 hp-bar-container">
+                <div
+                  className="stam-bar-fill"
+                  style={{ width: `${Math.max(0, (state.player.stamina / playerBase.maxStamina) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.player.stamina}</span>
+            </div>
+            <div className="flex gap-1 mt-1 flex-wrap">
+              <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#e8f0ff', color: '#2266cc', border: '1px solid #99b8ee' }}>
+                SPD {state.player.stamina < 20 ? Math.floor(playerBase.baseSpeed / 2) : playerBase.baseSpeed}
+              </span>
+              {pRequiredBites > 1 && (
+                <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#fff8e0', color: '#886600', border: '1px solid #ddc050' }}>
+                  PEN {state.player.biteProgress}/{pRequiredBites}
+                </span>
+              )}
+              {state.player.statusEffects.map((e, i) => (
+                <span key={i} className="text-[9px] px-1 rounded font-bold" style={{ background: '#ffe0e0', color: '#cc2222', border: '1px solid #ffaaaa' }}>
+                  {e.type.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="w-80 flex flex-col p-4">
-          <h3 className="text-xs font-bold text-amber-400/70 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            Battle Log
-          </h3>
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1" ref={scrollRef}>
-            {state.log.map((entry, i) => (
-              <div
-                key={i}
-                className="text-xs text-white/70 font-mono leading-relaxed border-l border-amber-500/20 pl-2"
-              >
-                {entry}
-              </div>
-            ))}
+        {/* Turn counter */}
+        <div className="absolute top-3 right-3 z-20">
+          <div style={{ background: 'rgba(255,255,255,0.85)', border: '2px solid #888', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, color: '#444', boxShadow: '2px 2px 0 #bbb' }}>
+            TURN {state.turnNumber}
           </div>
         </div>
       </div>
+
+      {/* ── BOTTOM PANEL (45%) — dialog + moves ── */}
+      <div className="flex-1 flex flex-col" style={{ background: '#d0d8e8', borderTop: '3px solid #8899bb' }}>
+
+        {/* Battle dialog box */}
+        <div className="mx-3 mt-2 battle-dialog px-4 py-2 flex-shrink-0" style={{ minHeight: 48 }}>
+          <p className="text-sm font-semibold" style={{ color: '#222', lineHeight: 1.4 }}>
+            {state.winner
+              ? (state.winner === 'player'
+                ? `${playerBase.name} wins the arena! Incredible victory!`
+                : `${opponentBase.name} wins! ${playerBase.name} was defeated...`)
+              : (lastLog || `What will ${playerBase.name} do?`)}
+          </p>
+        </div>
+
+        {/* Moves panel */}
+        {!state.winner ? (
+          <div className="flex gap-2 px-3 pb-3 mt-2 flex-1">
+            <div className="grid grid-cols-2 gap-2 flex-1">
+              {playerBase.abilities.map(a => {
+                const canAfford = state.player!.stamina >= a.staminaCost;
+                return (
+                  <button
+                    key={a.id}
+                    data-testid={`btn-ability-${a.id}`}
+                    disabled={!canAfford || playerBlocked}
+                    onClick={() => handleAction(a.id)}
+                    className={`move-btn move-${a.type} flex flex-col`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-black text-xs uppercase tracking-wide" style={{ color: '#111' }}>{a.name}</span>
+                      <span className="text-[10px] font-mono" style={{ color: '#777' }}>{a.staminaCost}ST</span>
+                    </div>
+                    {a.damage && (
+                      <span className="text-[10px] mt-0.5" style={{ color: '#c02020' }}>PWR {a.damage}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-col gap-2" style={{ width: 90 }}>
+              <button
+                data-testid="btn-rest"
+                disabled={playerBlocked}
+                onClick={handleRest}
+                className="move-btn move-utility flex-1 flex flex-col items-center justify-center text-center"
+                style={{ borderLeft: '4px solid #aaa' }}
+              >
+                <span className="font-black text-xs uppercase" style={{ color: '#444' }}>Rest</span>
+                <span className="text-[9px] mt-0.5" style={{ color: '#777' }}>+25 ST</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center pb-3 px-3">
+            <button
+              data-testid="btn-return"
+              onClick={() => dispatch({ type: 'RESET' })}
+              className="move-btn"
+              style={{ padding: '12px 32px', fontSize: 14, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', borderLeft: '4px solid #2266cc' }}
+            >
+              Return to Roster
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Victory overlay */}
+      <AnimatePresence>
+        {state.winner && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none"
+            style={{ background: 'rgba(0,0,0,0.45)' }}
+          >
+            <motion.div
+              initial={{ scale: 0.7, y: -20 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+              className="stat-box px-10 py-6 text-center"
+              style={{ pointerEvents: 'auto' }}
+            >
+              <p className="text-4xl font-black uppercase tracking-widest mb-1" style={{ color: state.winner === 'player' ? '#2266cc' : '#cc2222' }}>
+                {state.winner === 'player' ? 'Victory!' : 'Defeated!'}
+              </p>
+              <p className="text-base font-semibold mb-4" style={{ color: '#555' }}>
+                {state.winner === 'player' ? playerBase.name : opponentBase.name} wins
+              </p>
+              <button
+                data-testid="btn-return-overlay"
+                onClick={() => dispatch({ type: 'RESET' })}
+                className="move-btn"
+                style={{ padding: '10px 28px', fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', borderLeft: '4px solid #2266cc' }}
+              >
+                Play Again
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function StatPanel({
-  name, hp, maxHp, stamina, maxStamina, speed,
-  isPlayer, biteProgress, requiredBites, height, statusEffects
-}: {
-  name: string; hp: number; maxHp: number; stamina: number; maxStamina: number;
-  speed: number; isPlayer: boolean; biteProgress: number; requiredBites: number;
-  height: number; statusEffects: { type: string; duration: number }[];
-}) {
-  const hpPct = Math.max(0, (hp / maxHp) * 100);
-  const stPct = Math.max(0, (stamina / maxStamina) * 100);
-  const lowStamina = stamina < 20;
-
-  return (
-    <div className={`w-64 ${isPlayer ? 'text-left' : 'text-right'}`}>
-      <div className={`flex items-baseline gap-2 mb-2 ${!isPlayer && 'flex-row-reverse'}`}>
-        <h3 className="font-black text-xl text-white uppercase tracking-wider leading-none">{name}</h3>
-        <span className="text-xs text-white/30 font-mono">{height}m</span>
-      </div>
-      <div className="space-y-2 bg-black/50 p-3 rounded-lg border border-white/5">
-        <div>
-          <div className={`flex justify-between text-[10px] mb-1 font-mono uppercase font-bold ${!isPlayer && 'flex-row-reverse'}`}>
-            <span className="text-red-400">HP</span>
-            <span className="text-white/80">{hp}/{maxHp}</span>
-          </div>
-          <div className="h-2.5 bg-black/60 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-500 ${hpPct > 50 ? 'bg-red-500' : hpPct > 20 ? 'bg-orange-500' : 'bg-red-700 animate-pulse'}`}
-              style={{ width: `${hpPct}%` }}
-            />
-          </div>
-        </div>
-        <div>
-          <div className={`flex justify-between text-[10px] mb-1 font-mono uppercase font-bold ${!isPlayer && 'flex-row-reverse'}`}>
-            <span className={lowStamina ? 'text-red-400 animate-pulse' : 'text-emerald-400'}>STM</span>
-            <span className="text-white/80">{stamina}/{maxStamina}</span>
-          </div>
-          <div className="h-2 bg-black/60 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-500 transition-all duration-500"
-              style={{ width: `${stPct}%` }}
-            />
-          </div>
-        </div>
-        <div className={`flex items-center gap-1.5 pt-1 flex-wrap ${!isPlayer && 'flex-row-reverse'}`}>
-          <div className="bg-black/40 px-1.5 py-0.5 rounded text-[10px] font-mono border border-white/5">
-            <span className="text-blue-400">SPD</span> {lowStamina ? Math.floor(speed / 2) : speed}
-          </div>
-          {requiredBites > 1 && (
-            <div className="bg-black/40 px-1.5 py-0.5 rounded text-[10px] font-mono border border-amber-500/20">
-              <span className="text-amber-400">PEN</span> {biteProgress}/{requiredBites}
-            </div>
-          )}
-          {statusEffects.map((e, i) => (
-            <span key={i} className="text-[10px] bg-red-900/60 text-red-300 px-1 py-0.5 rounded uppercase font-mono">
-              {e.type}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+function getHpClass(hp: number, maxHp: number) {
+  const pct = hp / maxHp;
+  if (pct > 0.5) return 'hp-bar-green';
+  if (pct > 0.2) return 'hp-bar-yellow';
+  return 'hp-bar-red';
 }

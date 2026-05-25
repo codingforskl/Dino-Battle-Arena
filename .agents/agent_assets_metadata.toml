@@ -5,22 +5,22 @@ outputs = []
 id = "ppqpUULxfVtznRGAONSCe"
 uri = "file://artifacts/dino-battle/src/assets/velociraptor.png"
 type = "image"
-title = "velociraptor 3D render"
+title = "velociraptor game sprite"
 
 [[generated]]
 id = "gR-eAcCoGYS9uoNT3yWEN"
 uri = "file://artifacts/dino-battle/src/assets/giganotosaurus.png"
 type = "image"
-title = "giganotosaurus 3D render"
+title = "giganotosaurus game sprite"
 
 [[generated]]
 id = "SxOkDK5t2hM7wjbSYZo_7"
 uri = "file://artifacts/dino-battle/src/assets/spinosaurus.png"
 type = "image"
-title = "spinosaurus 3D render"
+title = "spinosaurus game sprite"
 
 [[generated]]
 id = "LdNX8pNZurbRrXlyuIr7v"
 uri = "file://artifacts/dino-battle/src/assets/forest-bg.png"
 type = "image"
-title = "prehistoric forest arena background"
+title = "pokemon style battle arena"
