@@ -10,6 +10,8 @@ export default function BattleArena() {
   const ctx = useContext(GameContext);
   const [animatingPlayer, setAnimatingPlayer] = useState(false);
   const [animatingOpponent, setAnimatingOpponent] = useState(false);
+  const [hitPlayer, setHitPlayer] = useState(false);
+  const [hitOpponent, setHitOpponent] = useState(false);
   const [lastLog, setLastLog] = useState('');
 
   const logLength = ctx?.state.log.length ?? 0;
@@ -39,6 +41,13 @@ export default function BattleArena() {
           const pick = validAbilities[Math.floor(Math.random() * validAbilities.length)];
           setAnimatingOpponent(true);
           setTimeout(() => setAnimatingOpponent(false), 600);
+          // Flash the player when AI attacks
+          if (pick.type === 'attack') {
+            setTimeout(() => {
+              setHitPlayer(true);
+              setTimeout(() => setHitPlayer(false), 450);
+            }, 300);
+          }
           dispatch({ type: 'USE_ABILITY', abilityId: pick.id, attacker: 'opponent' });
         } else {
           dispatch({ type: 'REST', attacker: 'opponent' });
@@ -50,6 +59,14 @@ export default function BattleArena() {
   const handleAction = (abilityId: string) => {
     setAnimatingPlayer(true);
     setTimeout(() => setAnimatingPlayer(false), 600);
+    // Flash the opponent when player uses an attack
+    const ability = playerBase.abilities.find(a => a.id === abilityId);
+    if (ability?.type === 'attack') {
+      setTimeout(() => {
+        setHitOpponent(true);
+        setTimeout(() => setHitOpponent(false), 450);
+      }, 300);
+    }
     dispatch({ type: 'USE_ABILITY', abilityId, attacker: 'player' });
     triggerAI();
   };
@@ -172,7 +189,8 @@ export default function BattleArena() {
           <DinoSvg
             dinoId={state.opponent.dinoId}
             flipped
-            style={{ height: oImgH, width: 'auto', filter: state.opponent.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(2px 4px 6px rgba(0,0,0,0.35))' }}
+            className={hitOpponent && state.opponent.hp > 0 ? 'dino-hit-opponent' : ''}
+            style={{ height: oImgH, width: 'auto', filter: state.opponent.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : undefined }}
           />
         </motion.div>
 
@@ -214,7 +232,8 @@ export default function BattleArena() {
         >
           <DinoSvg
             dinoId={state.player.dinoId}
-            style={{ height: pImgH, width: 'auto', filter: state.player.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(2px 6px 8px rgba(0,0,0,0.4))' }}
+            className={hitPlayer && state.player.hp > 0 ? 'dino-hit-player' : ''}
+            style={{ height: pImgH, width: 'auto', filter: state.player.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : undefined }}
           />
         </motion.div>
 
