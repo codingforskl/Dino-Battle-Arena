@@ -104,19 +104,19 @@ export const DINOSAURS: Record<DinoId, DinoBase> = {
   },
   pterodactylus: {
     id: 'pterodactylus',
-    name: 'Pterodactylus',
-    height: 0.4,
-    maxHp: 65,
-    baseSpeed: 115,
-    maxStamina: 60,
-    biteForce: 300,
+    name: 'Pterodactyl Flock',
+    height: 1.2,
+    maxHp: 165,
+    baseSpeed: 120,
+    maxStamina: 95,
+    biteForce: 900,
     hideToughness: 'low',
     abilities: [
-      { id: 'talon_rake', name: 'Talon Rake', description: 'Razor talons rake across the target', staminaCost: 8, type: 'attack', damage: 14 },
-      { id: 'aerial_dodge', name: 'Aerial Dodge', description: 'Takes to the air — 60% dodge chance', staminaCost: 12, type: 'buff' },
-      { id: 'beak_stab', name: 'Beak Stab', description: 'Precision pointed beak jab', staminaCost: 10, type: 'attack', damage: 18 },
-      { id: 'screech', name: 'Screech', description: 'Piercing screech — blinds opponent, 40% miss chance', staminaCost: 14, type: 'debuff' },
-      { id: 'screech_dive', name: 'SCREECH DIVE', description: 'Full-speed aerial dive bomb — blinds AND massive impact', staminaCost: 40, type: 'attack', damage: 45, isUltimate: true },
+      { id: 'talon_rake', name: 'Triple Talon Rake', description: 'All three pterodactyls rake talons across the target simultaneously', staminaCost: 10, type: 'attack', damage: 24 },
+      { id: 'aerial_dodge', name: 'Flock Scatter', description: 'Flock disperses and reforms — 60% dodge chance', staminaCost: 14, type: 'buff' },
+      { id: 'beak_stab', name: 'Synchronized Strike', description: 'Three precision beak strikes in perfect formation', staminaCost: 14, type: 'attack', damage: 30 },
+      { id: 'screech', name: 'Flock Screech', description: 'Deafening combined screech from all three — blinds opponent', staminaCost: 16, type: 'debuff' },
+      { id: 'screech_dive', name: 'SWARM DIVE BOMB', description: 'All three dive from altitude at full speed — massive combined impact', staminaCost: 44, type: 'attack', damage: 62, isUltimate: true },
     ]
   }
 };

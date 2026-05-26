@@ -118,7 +118,12 @@ export default function BattleArena() {
 
   if (!ctx || !ctx.state.player || !ctx.state.opponent) return null;
 
-  const { state, dispatch } = ctx;
+  const { state: rawState, dispatch } = ctx;
+  // player & opponent are guaranteed non-null — guarded by early return above
+  const state = rawState as Omit<typeof rawState, 'player' | 'opponent'> & {
+    player: NonNullable<typeof rawState.player>;
+    opponent: NonNullable<typeof rawState.opponent>;
+  };
   const playerBase   = DINOSAURS[state.player.dinoId];
   const opponentBase = DINOSAURS[state.opponent.dinoId];
 
@@ -146,7 +151,7 @@ export default function BattleArena() {
       setTimeout(() => setShowUltEffect(null), 1200);
     }
 
-    if (cfg.showRoar) {
+    if (cfg.showRoarRings) {
       setShowRoar({ side: attacker });
       setTimeout(() => setShowRoar(null), 700);
     }
@@ -179,28 +184,109 @@ export default function BattleArena() {
   const triggerAI = () => {
     setTimeout(() => {
       if (!ctx.state.winner) {
-        const aiState = ctx.state.opponent!;
-        const aiBase  = DINOSAURS[aiState.dinoId];
-        const isStunned = aiState.statusEffects.some(e => e.type === 'stunned');
-        if (isStunned) { dispatch({ type: 'REST', attacker: 'opponent' }); return; }
+        const aiState    = ctx.state.opponent!;
+        const aiBase     = DINOSAURS[aiState.dinoId];
+        const plState    = ctx.state.player!;
+        const plBase     = DINOSAURS[plState.dinoId];
+
+        // Stunned — skip turn
+        if (aiState.statusEffects.some(e => e.type === 'stunned')) {
+          dispatch({ type: 'REST', attacker: 'opponent' });
+          return;
+        }
+
+        const aiHpPct  = aiState.hp / aiBase.maxHp;
+        const plHpPct  = plState.hp / plBase.maxHp;
+        const aiStamPct = aiState.stamina / aiBase.maxStamina;
+
+        // Rest if critically low on stamina and not in immediate danger
+        if (aiStamPct < 0.18 && aiHpPct > 0.3) {
+          dispatch({ type: 'REST', attacker: 'opponent' });
+          return;
+        }
 
         const validAbilities = aiBase.abilities.filter(a =>
           a.staminaCost <= aiState.stamina && (!a.isUltimate || !aiState.ultimateUsed)
         );
-        if (validAbilities.length > 0) {
-          const hpPct    = aiState.hp / aiBase.maxHp;
-          const ultimates = validAbilities.filter(a => a.isUltimate);
-          const normals   = validAbilities.filter(a => !a.isUltimate);
-          let pick = normals.length > 0
-            ? normals[Math.floor(Math.random() * normals.length)]
-            : validAbilities[Math.floor(Math.random() * validAbilities.length)];
-          if (hpPct < 0.4 && ultimates.length > 0 && Math.random() > 0.4) pick = ultimates[0];
 
-          fireAnimation(pick.id, 'opponent', pick.name);
-          dispatch({ type: 'USE_ABILITY', abilityId: pick.id, attacker: 'opponent' });
-        } else {
+        if (validAbilities.length === 0) {
           dispatch({ type: 'REST', attacker: 'opponent' });
+          return;
         }
+
+        // Score each ability with context-aware heuristics
+        const scoreAbility = (a: typeof validAbilities[number]): number => {
+          let s = 0;
+
+          // Base: attack damage value
+          if (a.type === 'attack' && a.damage) {
+            s += a.damage * 1.5;
+            // Going for the finish — massive bonus if this can KO
+            if (a.damage >= plState.hp) s += 200;
+            // Press the advantage when player is low
+            if (plHpPct < 0.3) s += 40;
+          }
+
+          // Stamina efficiency
+          if (a.damage && a.staminaCost > 0) {
+            s += (a.damage / a.staminaCost) * 4;
+          }
+
+          // Debuffs — only useful if target doesn't already have that effect
+          if (a.id === 'roar' || a.id === 'rex_roar') {
+            const already = plState.statusEffects.some(e => e.type === 'intimidated' || e.type === 'stunned');
+            s += already ? -30 : (aiHpPct > 0.6 ? 50 : 20); // use early when healthy
+          }
+          if (a.id === 'screech') {
+            const already = plState.statusEffects.some(e => e.type === 'blinded');
+            s += already ? -30 : 38;
+          }
+          if (a.id === 'tail_sweep_giga' || a.id === 'stomp') {
+            const already = plState.statusEffects.some(e => e.type === 'slowed');
+            s += already ? -5 : 18; // still has damage so never fully penalise
+          }
+          if (a.id === 'body_slam' || a.id === 'rex_roar') {
+            const already = plState.statusEffects.some(e => e.type === 'stunned');
+            s += already ? -40 : 45;
+          }
+
+          // Buff/dodge — prioritise when low HP
+          if (a.type === 'buff') {
+            const alreadyEvasive = aiState.statusEffects.some(e => e.type === 'evade');
+            if (alreadyEvasive) s -= 50;
+            else s += aiHpPct < 0.35 ? 55 : (aiHpPct < 0.55 ? 25 : 5);
+          }
+
+          // Ultimate — calculated strike, not a panic button
+          if (a.isUltimate) {
+            if (a.damage && a.damage >= plState.hp) s += 250; // guaranteed KO
+            else if (plHpPct < 0.45) s += 70;                 // player is vulnerable
+            else if (aiHpPct < 0.22) s += 90;                 // desperate last stand
+            else s -= 15;                                       // save for right moment
+          }
+
+          // Slight random noise so AI isn't perfectly predictable
+          s += (Math.random() - 0.5) * 12;
+
+          return s;
+        };
+
+        const scored = validAbilities
+          .map(a => ({ a, s: scoreAbility(a) }))
+          .sort((x, y) => y.s - x.s);
+
+        // Weighted random among top 3 so AI isn't always perfectly optimal
+        const topN    = Math.min(3, scored.length);
+        const weights = [0.70, 0.22, 0.08].slice(0, topN);
+        let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+        let pick = scored[0].a;
+        for (let i = 0; i < topN; i++) {
+          r -= weights[i];
+          if (r <= 0) { pick = scored[i].a; break; }
+        }
+
+        fireAnimation(pick.id, 'opponent', pick.name);
+        dispatch({ type: 'USE_ABILITY', abilityId: pick.id, attacker: 'opponent' });
       }
     }, 1000);
   };
@@ -346,9 +432,21 @@ export default function BattleArena() {
         </div>
 
         {/* ── OPPONENT GROUND PLATFORM ── */}
-        <div className="absolute z-8" style={{ right: '8%', bottom: '28%', width: 200, pointerEvents: 'none' }}>
-          <div style={{ height: 18, borderRadius: '50%', background: 'linear-gradient(180deg, #6aaa44 0%, #4e8830 60%, #3d6e24 100%)', boxShadow: '0 4px 0 #2d5518, 0 6px 8px rgba(0,0,0,0.35)', border: '1px solid #3d6e24' }} />
-          <div style={{ height: 8, marginTop: -2, borderRadius: '0 0 50% 50%', background: 'linear-gradient(180deg, #8B6914 0%, #6b4f10 100%)' }} />
+        <div className="absolute z-8" style={{ right: '6%', bottom: '28%', width: 220, pointerEvents: 'none' }}>
+          {/* Grass top — layered for depth */}
+          <div style={{ position: 'relative', height: 22, borderRadius: '50%', background: 'linear-gradient(180deg, #8fd45a 0%, #5daa2e 45%, #3d8018 100%)', boxShadow: '0 5px 0 #2a6010, 0 8px 14px rgba(0,0,0,0.45)', border: '1px solid #3a7818' }}>
+            {/* Grass highlight streak */}
+            <div style={{ position: 'absolute', top: 3, left: '20%', width: '28%', height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.22)' }} />
+            <div style={{ position: 'absolute', top: 5, left: '55%', width: '16%', height: 3, borderRadius: 3, background: 'rgba(255,255,255,0.15)' }} />
+          </div>
+          {/* Soil band */}
+          <div style={{ height: 12, marginTop: -3, background: 'linear-gradient(180deg, #a07828 0%, #7a5a14 55%, #5c4010 100%)', borderRadius: '0 0 40% 40%' }}>
+            {/* Rock pebbles */}
+            <div style={{ position: 'relative', top: 3, left: '18%', display: 'inline-block', width: 6, height: 5, borderRadius: '50%', background: '#4a3010' }} />
+            <div style={{ position: 'relative', top: 2, left: '48%', display: 'inline-block', width: 5, height: 4, borderRadius: '50%', background: '#3e2a0c' }} />
+          </div>
+          {/* Ground shadow */}
+          <div style={{ height: 9, marginTop: 1, borderRadius: '50%', background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,0,0,0.32) 0%, transparent 100%)' }} />
         </div>
 
         {/* ── OPPONENT DINO ── */}
@@ -389,9 +487,24 @@ export default function BattleArena() {
         </motion.div>
 
         {/* ── PLAYER GROUND PLATFORM ── */}
-        <div className="absolute z-8" style={{ left: '6%', bottom: '4%', width: 240, pointerEvents: 'none' }}>
-          <div style={{ height: 22, borderRadius: '50%', background: 'linear-gradient(180deg, #78c450 0%, #5a9e36 60%, #4a8228 100%)', boxShadow: '0 5px 0 #365e1c, 0 8px 10px rgba(0,0,0,0.4)', border: '1px solid #4a8228' }} />
-          <div style={{ height: 10, marginTop: -2, borderRadius: '0 0 50% 50%', background: 'linear-gradient(180deg, #9B7914 0%, #7b5f10 100%)' }} />
+        <div className="absolute z-8" style={{ left: '4%', bottom: '4%', width: 265, pointerEvents: 'none' }}>
+          {/* Grass top — layered for depth */}
+          <div style={{ position: 'relative', height: 26, borderRadius: '50%', background: 'linear-gradient(180deg, #9fe060 0%, #68bb38 40%, #4a9020 100%)', boxShadow: '0 6px 0 #306812, 0 10px 16px rgba(0,0,0,0.5)', border: '1px solid #458020' }}>
+            <div style={{ position: 'absolute', top: 4, left: '15%', width: '32%', height: 5, borderRadius: 4, background: 'rgba(255,255,255,0.24)' }} />
+            <div style={{ position: 'absolute', top: 6, left: '55%', width: '20%', height: 3, borderRadius: 3, background: 'rgba(255,255,255,0.16)' }} />
+            {/* Grass blade tips */}
+            <div style={{ position: 'absolute', top: -3, left: '22%', width: 3, height: 6, borderRadius: '2px 2px 0 0', background: '#7ccc40', transform: 'rotate(-8deg)' }} />
+            <div style={{ position: 'absolute', top: -4, left: '40%', width: 3, height: 7, borderRadius: '2px 2px 0 0', background: '#8adc44', transform: 'rotate(5deg)' }} />
+            <div style={{ position: 'absolute', top: -3, left: '62%', width: 3, height: 6, borderRadius: '2px 2px 0 0', background: '#72c03a', transform: 'rotate(-4deg)' }} />
+          </div>
+          {/* Soil band */}
+          <div style={{ height: 14, marginTop: -3, background: 'linear-gradient(180deg, #b08830 0%, #8a6418 55%, #644810 100%)', borderRadius: '0 0 40% 40%' }}>
+            <div style={{ position: 'relative', top: 3, left: '14%', display: 'inline-block', width: 8, height: 6, borderRadius: '50%', background: '#52380e' }} />
+            <div style={{ position: 'relative', top: 2, left: '36%', display: 'inline-block', width: 6, height: 5, borderRadius: '50%', background: '#42300c' }} />
+            <div style={{ position: 'relative', top: 4, left: '58%', display: 'inline-block', width: 7, height: 5, borderRadius: '50%', background: '#4e3610' }} />
+          </div>
+          {/* Ground shadow */}
+          <div style={{ height: 10, marginTop: 1, borderRadius: '50%', background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,0,0,0.35) 0%, transparent 100%)' }} />
         </div>
 
         {/* ── PLAYER DINO ── */}
@@ -495,17 +608,17 @@ export default function BattleArena() {
       <div className="flex-1 flex flex-col" style={{ background: '#d0d8e8', borderTop: '3px solid #8899bb' }}>
 
         {/* Battle dialog */}
-        <div className="mx-3 mt-2 battle-dialog px-4 py-2 flex-shrink-0" style={{ minHeight: 48 }}>
+        <div className="mx-3 mt-2 battle-dialog px-5 py-3 flex-shrink-0" style={{ minHeight: 72 }}>
           {isPlayerStunned && !state.winner ? (
-            <p className="text-sm font-semibold" style={{ color: '#cc2222' }}>
-              {playerBase.name} is stunned and cannot act this turn!
+            <p className="font-bold" style={{ color: '#cc2222', fontSize: 15, lineHeight: 1.5 }}>
+              ⚠️ {playerBase.name} is stunned and cannot act this turn!
             </p>
           ) : (
-            <p className="text-sm font-semibold" style={{ color: '#222', lineHeight: 1.4 }}>
+            <p className="font-semibold" style={{ color: '#222', fontSize: 15, lineHeight: 1.55 }}>
               {state.winner
                 ? (state.winner === 'player'
-                  ? `${playerBase.name} wins the arena! Incredible victory!`
-                  : `${opponentBase.name} wins! ${playerBase.name} was defeated...`)
+                  ? `🏆 ${playerBase.name} wins the arena! Incredible victory!`
+                  : `💀 ${opponentBase.name} wins! ${playerBase.name} was defeated...`)
                 : (lastLog || `What will ${playerBase.name} do?`)}
             </p>
           )}

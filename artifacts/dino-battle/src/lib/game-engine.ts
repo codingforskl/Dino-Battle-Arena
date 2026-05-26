@@ -193,7 +193,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return e;
       });
 
-      let winner = state.winner;
+      let winner: 'player' | 'opponent' | null = state.winner;
       if (newDefenderHp === 0) {
         winner = isPlayerAttacking ? 'player' : 'opponent';
         newLog.push(`${defenderBase.name} was defeated!`);
