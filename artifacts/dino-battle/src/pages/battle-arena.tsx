@@ -3,6 +3,7 @@ import { GameContext } from '@/App';
 import { DINOSAURS, STATUS_TOOLTIPS } from '@/lib/dino-data';
 import { getRequiredBites } from '@/lib/game-engine';
 import { DinoSvg } from '@/components/dino-svg';
+import { MoveEffect } from '@/components/move-effects';
 import { motion, AnimatePresence } from 'framer-motion';
 import forestBg from '../assets/forest-bg.png';
 
@@ -108,6 +109,7 @@ export default function BattleArena() {
   const [showLightning, setShowLightning] = useState<{ side: 'player' | 'opponent' } | null>(null);
   const [arenaShake, setArenaShake] = useState(false);
   const [lastLog, setLastLog] = useState('');
+  const [activeMoveEffect, setActiveMoveEffect] = useState<{ abilityId: string; side: 'player' | 'opponent' } | null>(null);
   const arenaRef = useRef<HTMLDivElement>(null);
 
   const logLength = ctx?.state.log.length ?? 0;
@@ -135,6 +137,8 @@ export default function BattleArena() {
     const cfg = ABILITY_ANIMS[abilityId] ?? DEFAULT_ANIM;
     const isUlt = !!cfg.isUltimate;
     const hitDelay = Math.round(cfg.duration * 0.55 * 1000);
+
+    setActiveMoveEffect({ abilityId, side: attacker });
 
     if (attacker === 'player') {
       setPlayerAnim(prev => ({ playing: true, config: cfg, key: prev.key + 1, isUltimate: isUlt }));
@@ -372,6 +376,14 @@ export default function BattleArena() {
       >
         <img src={forestBg} alt="arena" className="absolute inset-0 w-full h-full object-cover object-center" style={{ opacity: 0.92 }} draggable={false} />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(120,180,240,0.25) 0%, transparent 55%)' }} />
+
+        {activeMoveEffect && (
+          <MoveEffect
+            abilityId={activeMoveEffect.abilityId}
+            side={activeMoveEffect.side}
+            onComplete={() => setActiveMoveEffect(null)}
+          />
+        )}
 
         {/* ── Ultimate screen flash ── */}
         <AnimatePresence>
