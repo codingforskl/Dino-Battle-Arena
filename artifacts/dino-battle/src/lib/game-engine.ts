@@ -39,21 +39,11 @@ export function initializeCombatant(dinoId: DinoId, isPlayer: boolean): Combatan
   };
 }
 
-export function getRequiredBites(attacker: DinoId, defender: DinoId): number {
-  const attackerBiteForce = DINOSAURS[attacker].biteForce;
+export function getRequiredBites(_attacker: DinoId, defender: DinoId): number {
   const defenderToughness = DINOSAURS[defender].hideToughness;
-
   if (defenderToughness === 'low') return 1;
-  if (defenderToughness === 'medium') {
-    if (attackerBiteForce >= 8000) return 1;
-    return 3;
-  }
-  if (defenderToughness === 'high') {
-    if (attackerBiteForce >= 35000) return 1;
-    if (attackerBiteForce >= 8000) return 2;
-    return 3;
-  }
-  return 1;
+  if (defenderToughness === 'medium') return 2;
+  return 3; // high
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
