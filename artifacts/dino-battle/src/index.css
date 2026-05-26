@@ -147,23 +147,39 @@
   background: radial-gradient(ellipse 70% 30% at 50% 100%, rgba(0,0,0,0.25) 0%, transparent 100%);
 }
 
+/* ── Idle breathing glow ── */
+@keyframes dino-breathe {
+  0%, 100% { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1.00); }
+  50%       { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1.06); }
+}
+.dino-breathe { animation: dino-breathe 3s ease-in-out infinite; }
+
+/* ── Critical HP pulse (red) ── */
+@keyframes dino-crit-pulse {
+  0%, 100% { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.6)); }
+  50%       { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.6))
+                      drop-shadow(0 0 24px rgba(255,30,30,0.92))
+                      brightness(1.12); }
+}
+.dino-critical { animation: dino-crit-pulse 0.85s ease-in-out infinite; }
+
 /* ── Hit flash ── */
 @keyframes hit-flash {
-  0%   { filter: brightness(1) drop-shadow(2px 4px 6px rgba(0,0,0,0.35)); }
-  15%  { filter: brightness(10) saturate(0) drop-shadow(0 0 18px rgba(255,255,255,0.9)); }
-  35%  { filter: brightness(1) drop-shadow(2px 4px 6px rgba(0,0,0,0.35)); }
-  55%  { filter: brightness(8) saturate(0) drop-shadow(0 0 12px rgba(255,255,255,0.7)); }
-  100% { filter: brightness(1) drop-shadow(2px 4px 6px rgba(0,0,0,0.35)); }
+  0%   { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1); }
+  15%  { filter: brightness(12) saturate(0) drop-shadow(0 0 22px rgba(255,255,255,1)); }
+  38%  { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1) drop-shadow(0 0 0 rgba(255,80,80,0)); }
+  58%  { filter: brightness(9) saturate(0) drop-shadow(0 0 14px rgba(255,255,255,0.8)); }
+  100% { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1); }
 }
 @keyframes hit-flash-player {
-  0%   { filter: brightness(1) drop-shadow(2px 6px 8px rgba(0,0,0,0.4)); }
-  15%  { filter: brightness(10) saturate(0) drop-shadow(0 0 18px rgba(255,255,255,0.9)); }
-  35%  { filter: brightness(1) drop-shadow(2px 6px 8px rgba(0,0,0,0.4)); }
-  55%  { filter: brightness(8) saturate(0) drop-shadow(0 0 12px rgba(255,255,255,0.7)); }
-  100% { filter: brightness(1) drop-shadow(2px 6px 8px rgba(0,0,0,0.4)); }
+  0%   { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1); }
+  15%  { filter: brightness(12) saturate(0) drop-shadow(0 0 22px rgba(255,255,255,1)); }
+  38%  { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1); }
+  58%  { filter: brightness(9) saturate(0) drop-shadow(0 0 14px rgba(255,255,255,0.8)); }
+  100% { filter: drop-shadow(3px 8px 14px rgba(0,0,0,0.55)) brightness(1); }
 }
-.dino-hit-opponent { animation: hit-flash 0.45s ease-out forwards; }
-.dino-hit-player    { animation: hit-flash-player 0.45s ease-out forwards; }
+.dino-hit-opponent { animation: hit-flash 0.48s ease-out forwards; }
+.dino-hit-player    { animation: hit-flash-player 0.48s ease-out forwards; }
 
 /* ── Ultimate glow on attacker ── */
 @keyframes ult-glow-player {

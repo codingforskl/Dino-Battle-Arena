@@ -19,65 +19,65 @@ interface AnimConfig {
 }
 
 const ABILITY_ANIMS: Record<string, AnimConfig> = {
-  // ── Velociraptor ──
-  sickle_claw:     { target: 'opponent', duration: 0.42, showImpact: true,
-    keyframes: { x:[0,55,20,0], y:[0,-15,10,0], rotate:[0,-20,5,0], scale:[1,1.05,1,1] } },
+  // ── Velociraptor Pack ──  (positive x = lunge toward opponent)
+  sickle_claw:     { target: 'opponent', duration: 0.40, showImpact: true,
+    keyframes: { x:[0,72,24,0], y:[0,-18,8,0], rotate:[0,-22,6,0], scale:[1,1.07,1,1] } },
   pack_feint:      { target: 'self', duration: 0.55,
-    keyframes: { x:[0,-25,15,-8,0], y:[0,-10,5,0], rotate:[0,10,-5,0], scale:[1,1.08,0.95,1] } },
-  leap_strike:     { target: 'opponent', duration: 0.6, showImpact: true,
-    keyframes: { x:[0,70,30,0], y:[0,-60,-10,0], rotate:[0,-25,10,0], scale:[1,1.12,1,1] } },
-  bite_raptor:     { target: 'opponent', duration: 0.45, showImpact: true,
-    keyframes: { x:[0,45,0], y:[0,-5,0], rotate:[0,-12,0], scale:[1,1.05,1] } },
-  frenzy_blitz:    { target: 'opponent', duration: 0.85, isUltimate: true, showImpact: true, showLightning: true,
-    keyframes: { x:[0,50,20,60,30,0], y:[0,-20,10,-15,5,0], rotate:[0,-20,10,-15,8,0], scale:[1,1.2,1,1.15,1,1] } },
+    keyframes: { x:[0,-28,14,-8,0], y:[0,-12,6,0], rotate:[0,12,-5,0], scale:[1,1.12,0.93,1] } },
+  leap_strike:     { target: 'opponent', duration: 0.56, showImpact: true,
+    keyframes: { x:[0,90,34,0], y:[0,-70,-8,0], rotate:[0,-30,10,0], scale:[1,1.15,1,1] } },
+  bite_raptor:     { target: 'opponent', duration: 0.42, showImpact: true,
+    keyframes: { x:[0,62,0], y:[0,-6,0], rotate:[0,-15,0], scale:[1,1.07,1] } },
+  frenzy_blitz:    { target: 'opponent', duration: 0.80, isUltimate: true, showImpact: true, showLightning: true,
+    keyframes: { x:[0,70,26,80,34,0], y:[0,-24,10,-18,5,0], rotate:[0,-24,10,-16,8,0], scale:[1,1.24,1,1.20,1,1] } },
 
-  // ── Giganotosaurus ──
-  crushing_bite:   { target: 'opponent', duration: 0.55, showImpact: true,
-    keyframes: { x:[0,-75,-20,0], y:[0,8,-2,0], rotate:[0,15,-5,0], scale:[1.1,1.15,1,1] } },
-  body_slam:       { target: 'opponent', duration: 0.6, showImpact: true,
-    keyframes: { x:[0,-65,-20,0], y:[0,20,5,0], rotate:[0,8,-2,0], scale:[1.05,1.2,1,1] } },
+  // ── Giganotosaurus ──  (positive x = lunge toward opponent)
+  crushing_bite:   { target: 'opponent', duration: 0.52, showImpact: true,
+    keyframes: { x:[0,90,28,0], y:[0,10,-2,0], rotate:[0,-16,5,0], scale:[1.08,1.20,1,1] } },
+  body_slam:       { target: 'opponent', duration: 0.58, showImpact: true,
+    keyframes: { x:[0,82,26,0], y:[0,24,6,0], rotate:[0,-10,3,0], scale:[1.05,1.24,1,1] } },
   tail_sweep_giga: { target: 'opponent', duration: 0.55, showImpact: true,
-    keyframes: { x:[0,15,-30,0], y:[0,5,0,0], rotate:[0,35,10,0], scale:[1,1.05,1,1] } },
+    keyframes: { x:[0,-14,38,0], y:[0,5,0,0], rotate:[0,-44,10,0], scale:[1,1.07,1,1] } },
   roar:            { target: 'self', duration: 0.65, showRoarRings: true,
-    keyframes: { scale:[1,1.35,1.15,1.25,1], y:[0,-8,3,-5,0], rotate:[0,-5,3,-2,0] } },
-  apex_domination: { target: 'opponent', duration: 0.9, isUltimate: true, showImpact: true, showLightning: true,
-    keyframes: { x:[0,-90,-30,0], y:[0,30,-5,0], rotate:[0,20,-5,0], scale:[1.15,1.3,1.05,1] } },
+    keyframes: { scale:[1,1.40,1.18,1.28,1], y:[0,-10,4,-6,0], rotate:[0,-6,3,-2,0] } },
+  apex_domination: { target: 'opponent', duration: 0.88, isUltimate: true, showImpact: true, showLightning: true,
+    keyframes: { x:[0,100,34,0], y:[0,34,-5,0], rotate:[0,-24,5,0], scale:[1.15,1.34,1.05,1] } },
 
-  // ── Spinosaurus ──
-  sail_slam:       { target: 'opponent', duration: 0.5, showImpact: true,
-    keyframes: { x:[0,-45,-10,0], y:[0,-25,10,0], rotate:[0,15,-5,0], scale:[1,1.08,1,1] } },
+  // ── Spinosaurus ──  (positive x = lunge toward opponent)
+  sail_slam:       { target: 'opponent', duration: 0.48, showImpact: true,
+    keyframes: { x:[0,64,20,0], y:[0,-30,12,0], rotate:[0,-20,5,0], scale:[1,1.11,1,1] } },
   tail_whip:       { target: 'opponent', duration: 0.52, showImpact: true,
-    keyframes: { x:[0,20,-35,0], y:[0,5,-2,0], rotate:[0,-35,5,0], scale:[1,1.05,1,1] } },
-  ambush_strike:   { target: 'opponent', duration: 0.5, showImpact: true,
-    keyframes: { x:[0,-80,-20,0], y:[0,5,0,0], rotate:[0,12,-3,0], scale:[1.1,1.1,1,1] } },
-  bite_spino:      { target: 'opponent', duration: 0.48, showImpact: true,
-    keyframes: { x:[0,-50,-10,0], y:[0,8,0,0], rotate:[0,10,-3,0], scale:[1,1.06,1,1] } },
-  death_roll:      { target: 'opponent', duration: 0.9, isUltimate: true, showImpact: true, showLightning: true,
-    keyframes: { x:[0,-60,-80,-40,0], y:[0,15,-5,20,0], rotate:[0,-180,-270,-360,-360], scale:[1.1,1.2,1.1,1,1] } },
+    keyframes: { x:[0,-16,40,0], y:[0,5,-2,0], rotate:[0,-44,8,0], scale:[1,1.07,1,1] } },
+  ambush_strike:   { target: 'opponent', duration: 0.48, showImpact: true,
+    keyframes: { x:[0,92,26,0], y:[0,6,0,0], rotate:[0,-14,3,0], scale:[1.10,1.14,1,1] } },
+  bite_spino:      { target: 'opponent', duration: 0.46, showImpact: true,
+    keyframes: { x:[0,64,18,0], y:[0,10,0,0], rotate:[0,-12,3,0], scale:[1,1.09,1,1] } },
+  death_roll:      { target: 'opponent', duration: 0.88, isUltimate: true, showImpact: true, showLightning: true,
+    keyframes: { x:[0,70,88,44,0], y:[0,16,-5,22,0], rotate:[0,180,270,360,360], scale:[1.10,1.24,1.10,1,1] } },
 
-  // ── T-Rex ──
-  rex_bite:        { target: 'opponent', duration: 0.55, showImpact: true,
-    keyframes: { x:[0,-85,-25,0], y:[0,10,0,0], rotate:[0,15,-4,0], scale:[1.1,1.2,1,1] } },
-  stomp:           { target: 'opponent', duration: 0.55, showImpact: true,
-    keyframes: { x:[0,-55,0], y:[0,35,-5,0], rotate:[0,8,0], scale:[1,1.18,1] } },
-  headbutt:        { target: 'opponent', duration: 0.5, showImpact: true,
-    keyframes: { x:[0,-75,-20,0], y:[0,-10,5,0], rotate:[0,20,-5,0], scale:[1.05,1.15,1,1] } },
+  // ── T-Rex ──  (positive x = lunge toward opponent)
+  rex_bite:        { target: 'opponent', duration: 0.52, showImpact: true,
+    keyframes: { x:[0,98,30,0], y:[0,12,0,0], rotate:[0,-18,4,0], scale:[1.12,1.26,1,1] } },
+  stomp:           { target: 'opponent', duration: 0.52, showImpact: true,
+    keyframes: { x:[0,70,0], y:[0,40,-5,0], rotate:[0,-10,0], scale:[1,1.22,1] } },
+  headbutt:        { target: 'opponent', duration: 0.48, showImpact: true,
+    keyframes: { x:[0,90,28,0], y:[0,-12,6,0], rotate:[0,-25,5,0], scale:[1.06,1.20,1,1] } },
   rex_roar:        { target: 'self', duration: 0.75, showRoarRings: true,
-    keyframes: { scale:[1,1.45,1.2,1.35,1], y:[0,-12,5,-8,0], rotate:[0,-8,4,-4,0] } },
-  tyrants_wrath:   { target: 'opponent', duration: 0.95, isUltimate: true, showImpact: true, showLightning: true,
-    keyframes: { x:[0,-100,-40,0], y:[0,15,-3,0], rotate:[0,25,-6,0], scale:[1.2,1.4,1.1,1] } },
+    keyframes: { scale:[1,1.50,1.24,1.38,1], y:[0,-14,6,-9,0], rotate:[0,-9,4,-4,0] } },
+  tyrants_wrath:   { target: 'opponent', duration: 0.92, isUltimate: true, showImpact: true, showLightning: true,
+    keyframes: { x:[0,112,44,0], y:[0,16,-3,0], rotate:[0,-30,6,0], scale:[1.22,1.44,1.12,1] } },
 
-  // ── Pterodactylus ──
-  talon_rake:      { target: 'opponent', duration: 0.42, showImpact: true,
-    keyframes: { x:[0,65,20,0], y:[0,-25,10,0], rotate:[0,-25,8,0], scale:[1,1.08,1,1] } },
+  // ── Pterodactyl Flock ──  (positive x = dive toward opponent)
+  talon_rake:      { target: 'opponent', duration: 0.40, showImpact: true,
+    keyframes: { x:[0,82,26,0], y:[0,-30,12,0], rotate:[0,-30,8,0], scale:[1,1.11,1,1] } },
   aerial_dodge:    { target: 'self', duration: 0.55,
-    keyframes: { x:[0,-15,10,-5,0], y:[0,-35,-10,0], rotate:[0,-15,5,0], scale:[1,0.9,1,1] } },
-  beak_stab:       { target: 'opponent', duration: 0.4, showImpact: true,
-    keyframes: { x:[0,80,15,0], y:[0,-10,5,0], rotate:[0,-35,10,0], scale:[1,1.06,1,1] } },
-  screech:         { target: 'self', duration: 0.6, showRoarRings: true,
-    keyframes: { scale:[1,1.25,1.1,1.18,1], x:[0,-5,5,-3,0], y:[0,-8,4,-4,0] } },
-  screech_dive:    { target: 'opponent', duration: 0.85, isUltimate: true, showImpact: true, showLightning: true,
-    keyframes: { x:[0,90,30,0], y:[0,-65,25,0], rotate:[0,-40,15,0], scale:[1,1.15,1.05,1] } },
+    keyframes: { x:[0,-18,12,-6,0], y:[0,-42,-10,0], rotate:[0,-20,6,0], scale:[1,0.86,1,1] } },
+  beak_stab:       { target: 'opponent', duration: 0.38, showImpact: true,
+    keyframes: { x:[0,94,18,0], y:[0,-12,6,0], rotate:[0,-40,12,0], scale:[1,1.09,1,1] } },
+  screech:         { target: 'self', duration: 0.60, showRoarRings: true,
+    keyframes: { scale:[1,1.30,1.12,1.20,1], x:[0,-6,5,-3,0], y:[0,-10,5,-4,0] } },
+  screech_dive:    { target: 'opponent', duration: 0.80, isUltimate: true, showImpact: true, showLightning: true,
+    keyframes: { x:[0,100,36,0], y:[0,-75,28,0], rotate:[0,-46,16,0], scale:[1,1.20,1.06,1] } },
 };
 
 const DEFAULT_ANIM: AnimConfig = {
@@ -349,6 +349,18 @@ export default function BattleArena() {
     ? 'dino-ult-opponent'
     : '';
 
+  // HP-ratio for visual effects
+  const playerHpPct   = state.player.hp   / playerBase.maxHp;
+  const opponentHpPct = state.opponent.hp / opponentBase.maxHp;
+
+  // Final CSS class: hit/ult animations take priority; else breathe or critical pulse
+  const playerVisualCls = state.player.hp <= 0   ? '' : playerCss   || (playerHpPct   < 0.25 ? 'dino-critical' : 'dino-breathe');
+  const oppVisualCls    = state.opponent.hp <= 0  ? '' : opponentCss || (opponentHpPct < 0.25 ? 'dino-critical' : 'dino-breathe');
+
+  // Drop-shadow for healthy dinos; greyscale when fainted
+  const playerFilter   = state.player.hp   <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(3px 8px 14px rgba(0,0,0,0.6))';
+  const opponentFilter = state.opponent.hp  <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(3px 8px 14px rgba(0,0,0,0.6))';
+
   return (
     <div className="flex-1 flex flex-col" style={{ minHeight: '100vh', background: '#c8d8e8', userSelect: 'none' }}>
 
@@ -431,22 +443,35 @@ export default function BattleArena() {
           </div>
         </div>
 
-        {/* ── OPPONENT GROUND PLATFORM ── */}
-        <div className="absolute z-8" style={{ right: '6%', bottom: '28%', width: 220, pointerEvents: 'none' }}>
-          {/* Grass top — layered for depth */}
-          <div style={{ position: 'relative', height: 22, borderRadius: '50%', background: 'linear-gradient(180deg, #8fd45a 0%, #5daa2e 45%, #3d8018 100%)', boxShadow: '0 5px 0 #2a6010, 0 8px 14px rgba(0,0,0,0.45)', border: '1px solid #3a7818' }}>
-            {/* Grass highlight streak */}
-            <div style={{ position: 'absolute', top: 3, left: '20%', width: '28%', height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.22)' }} />
-            <div style={{ position: 'absolute', top: 5, left: '55%', width: '16%', height: 3, borderRadius: 3, background: 'rgba(255,255,255,0.15)' }} />
+        {/* ── OPPONENT STONE CLIFF PLATFORM ── */}
+        <div className="absolute" style={{ right: '6%', bottom: '28%', width: 230, pointerEvents: 'none', zIndex: 8 }}>
+          {/* Grass top */}
+          <div style={{ position: 'relative', height: 24, borderRadius: '50%',
+            background: 'linear-gradient(180deg, #a2dc5c 0%, #68b830 42%, #4a9018 100%)',
+            boxShadow: '0 -2px 0 rgba(255,255,255,0.18) inset, 0 7px 0 #2e6008, 0 11px 18px rgba(0,0,0,0.52)',
+            border: '1px solid #428016', zIndex: 2 }}>
+            <div style={{ position: 'absolute', top: 4, left: '14%', width: '36%', height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.26)' }} />
+            {[['22%','8','-10'],['37%','10','7'],['54%','7','-5'],['70%','9','8']].map(([l,h,r],i)=>(
+              <div key={i} style={{position:'absolute',top:`-${h}px`,left:l,width:3,height:`${h}px`,borderRadius:'2px 2px 0 0',background:'#84cc36',transform:`rotate(${r}deg)`}}/>
+            ))}
           </div>
-          {/* Soil band */}
-          <div style={{ height: 12, marginTop: -3, background: 'linear-gradient(180deg, #a07828 0%, #7a5a14 55%, #5c4010 100%)', borderRadius: '0 0 40% 40%' }}>
-            {/* Rock pebbles */}
-            <div style={{ position: 'relative', top: 3, left: '18%', display: 'inline-block', width: 6, height: 5, borderRadius: '50%', background: '#4a3010' }} />
-            <div style={{ position: 'relative', top: 2, left: '48%', display: 'inline-block', width: 5, height: 4, borderRadius: '50%', background: '#3e2a0c' }} />
+          {/* Stone cliff face */}
+          <div style={{ height: 28, marginTop: -5, position: 'relative', overflow: 'hidden',
+            background: 'linear-gradient(180deg, #9e8e74 0%, #7e6e5c 50%, #5e5242 100%)',
+            boxShadow: 'inset 0 3px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.32)' }}>
+            <div style={{position:'absolute',top:8,left:0,right:0,height:1,background:'rgba(0,0,0,0.20)'}}/>
+            <div style={{position:'absolute',top:18,left:0,right:0,height:1,background:'rgba(0,0,0,0.15)'}}/>
+            <div style={{position:'absolute',top:2,left:'34%',width:1,height:20,background:'rgba(0,0,0,0.22)',transform:'rotate(4deg)'}}/>
+            <div style={{position:'absolute',top:5,left:'65%',width:1,height:16,background:'rgba(0,0,0,0.17)',transform:'rotate(-7deg)'}}/>
+            <div style={{position:'absolute',top:11,left:'20%',width:7,height:5,borderRadius:3,background:'rgba(0,0,0,0.18)'}}/>
+            <div style={{position:'absolute',top:15,left:'54%',width:6,height:4,borderRadius:3,background:'rgba(0,0,0,0.14)'}}/>
           </div>
-          {/* Ground shadow */}
-          <div style={{ height: 9, marginTop: 1, borderRadius: '50%', background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,0,0,0.32) 0%, transparent 100%)' }} />
+          {/* Rounded dark bottom */}
+          <div style={{ height: 10, marginTop: -2, borderRadius: '0 0 50% 50%',
+            background: 'linear-gradient(180deg, #4e3e30 0%, #2e2418 100%)' }}/>
+          {/* Cast shadow */}
+          <div style={{ height: 12, marginTop: 3, borderRadius: '50%',
+            background: 'radial-gradient(ellipse 86% 52% at 50% 35%, rgba(0,0,0,0.40) 0%, transparent 100%)' }}/>
         </div>
 
         {/* ── OPPONENT DINO ── */}
@@ -481,30 +506,41 @@ export default function BattleArena() {
           <DinoSvg
             dinoId={state.opponent.dinoId}
             flipped
-            className={state.opponent.hp <= 0 ? '' : opponentCss}
-            style={{ height: oImgH, width: 'auto', filter: state.opponent.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : undefined }}
+            className={oppVisualCls}
+            style={{ height: oImgH, width: 'auto', filter: opponentFilter }}
           />
         </motion.div>
 
-        {/* ── PLAYER GROUND PLATFORM ── */}
-        <div className="absolute z-8" style={{ left: '4%', bottom: '4%', width: 265, pointerEvents: 'none' }}>
-          {/* Grass top — layered for depth */}
-          <div style={{ position: 'relative', height: 26, borderRadius: '50%', background: 'linear-gradient(180deg, #9fe060 0%, #68bb38 40%, #4a9020 100%)', boxShadow: '0 6px 0 #306812, 0 10px 16px rgba(0,0,0,0.5)', border: '1px solid #458020' }}>
-            <div style={{ position: 'absolute', top: 4, left: '15%', width: '32%', height: 5, borderRadius: 4, background: 'rgba(255,255,255,0.24)' }} />
-            <div style={{ position: 'absolute', top: 6, left: '55%', width: '20%', height: 3, borderRadius: 3, background: 'rgba(255,255,255,0.16)' }} />
-            {/* Grass blade tips */}
-            <div style={{ position: 'absolute', top: -3, left: '22%', width: 3, height: 6, borderRadius: '2px 2px 0 0', background: '#7ccc40', transform: 'rotate(-8deg)' }} />
-            <div style={{ position: 'absolute', top: -4, left: '40%', width: 3, height: 7, borderRadius: '2px 2px 0 0', background: '#8adc44', transform: 'rotate(5deg)' }} />
-            <div style={{ position: 'absolute', top: -3, left: '62%', width: 3, height: 6, borderRadius: '2px 2px 0 0', background: '#72c03a', transform: 'rotate(-4deg)' }} />
+        {/* ── PLAYER STONE CLIFF PLATFORM ── */}
+        <div className="absolute" style={{ left: '4%', bottom: '4%', width: 282, pointerEvents: 'none', zIndex: 8 }}>
+          {/* Grass top */}
+          <div style={{ position: 'relative', height: 28, borderRadius: '50%',
+            background: 'linear-gradient(180deg, #aadc5c 0%, #6cc032 42%, #4e9a1a 100%)',
+            boxShadow: '0 -2px 0 rgba(255,255,255,0.20) inset, 0 8px 0 #2e6408, 0 12px 20px rgba(0,0,0,0.54)',
+            border: '1px solid #468418', zIndex: 2 }}>
+            <div style={{ position: 'absolute', top: 5, left: '12%', width: '38%', height: 5, borderRadius: 4, background: 'rgba(255,255,255,0.28)' }} />
+            {[['18%','10','-11'],['32%','12','7'],['49%','9','-5'],['63%','11','9'],['77%','9','-7']].map(([l,h,r],i)=>(
+              <div key={i} style={{position:'absolute',top:`-${h}px`,left:l,width:3,height:`${h}px`,borderRadius:'2px 2px 0 0',background:'#8ad03a',transform:`rotate(${r}deg)`}}/>
+            ))}
           </div>
-          {/* Soil band */}
-          <div style={{ height: 14, marginTop: -3, background: 'linear-gradient(180deg, #b08830 0%, #8a6418 55%, #644810 100%)', borderRadius: '0 0 40% 40%' }}>
-            <div style={{ position: 'relative', top: 3, left: '14%', display: 'inline-block', width: 8, height: 6, borderRadius: '50%', background: '#52380e' }} />
-            <div style={{ position: 'relative', top: 2, left: '36%', display: 'inline-block', width: 6, height: 5, borderRadius: '50%', background: '#42300c' }} />
-            <div style={{ position: 'relative', top: 4, left: '58%', display: 'inline-block', width: 7, height: 5, borderRadius: '50%', background: '#4e3610' }} />
+          {/* Stone cliff face */}
+          <div style={{ height: 32, marginTop: -5, position: 'relative', overflow: 'hidden',
+            background: 'linear-gradient(180deg, #a09278 0%, #806c5c 50%, #605048 100%)',
+            boxShadow: 'inset 0 3px 0 rgba(255,255,255,0.15), inset 0 -3px 6px rgba(0,0,0,0.34)' }}>
+            <div style={{position:'absolute',top:9,left:0,right:0,height:1,background:'rgba(0,0,0,0.21)'}}/>
+            <div style={{position:'absolute',top:20,left:0,right:0,height:1,background:'rgba(0,0,0,0.16)'}}/>
+            <div style={{position:'absolute',top:3,left:'36%',width:1,height:22,background:'rgba(0,0,0,0.23)',transform:'rotate(5deg)'}}/>
+            <div style={{position:'absolute',top:6,left:'70%',width:1,height:17,background:'rgba(0,0,0,0.18)',transform:'rotate(-8deg)'}}/>
+            <div style={{position:'absolute',top:13,left:'18%',width:8,height:5,borderRadius:3,background:'rgba(0,0,0,0.19)'}}/>
+            <div style={{position:'absolute',top:17,left:'52%',width:7,height:5,borderRadius:3,background:'rgba(0,0,0,0.15)'}}/>
+            <div style={{position:'absolute',top:12,left:'82%',width:6,height:4,borderRadius:3,background:'rgba(0,0,0,0.14)'}}/>
           </div>
-          {/* Ground shadow */}
-          <div style={{ height: 10, marginTop: 1, borderRadius: '50%', background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,0,0,0.35) 0%, transparent 100%)' }} />
+          {/* Rounded dark bottom */}
+          <div style={{ height: 11, marginTop: -2, borderRadius: '0 0 50% 50%',
+            background: 'linear-gradient(180deg, #504038 0%, #302818 100%)' }}/>
+          {/* Cast shadow */}
+          <div style={{ height: 14, marginTop: 3, borderRadius: '50%',
+            background: 'radial-gradient(ellipse 88% 54% at 50% 35%, rgba(0,0,0,0.44) 0%, transparent 100%)' }}/>
         </div>
 
         {/* ── PLAYER DINO ── */}
@@ -538,8 +574,8 @@ export default function BattleArena() {
           )}
           <DinoSvg
             dinoId={state.player.dinoId}
-            className={state.player.hp <= 0 ? '' : playerCss}
-            style={{ height: pImgH, width: 'auto', filter: state.player.hp <= 0 ? 'grayscale(0.6) brightness(0.6)' : undefined }}
+            className={playerVisualCls}
+            style={{ height: pImgH, width: 'auto', filter: playerFilter }}
           />
         </motion.div>
 
