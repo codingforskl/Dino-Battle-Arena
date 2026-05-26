@@ -21,77 +21,96 @@ interface DinoImgProps {
 }
 
 export function DinoSvg({ dinoId, className, style, flipped }: DinoImgProps) {
-  // Pterodactylus renders as a flock of 3
-  if (dinoId === 'pterodactylus') {
-    const h = typeof style?.height === 'number' ? style.height : 90;
-    const w = Math.round(h * 1.9);
-    const flip: React.CSSProperties = flipped ? { transform: 'scaleX(-1)' } : {};
-    const baseImg: React.CSSProperties = { objectFit: 'contain', objectPosition: 'bottom', userSelect: 'none' };
+
+  /* ══════════════════════════════════════════════════════════════
+     VELOCIRAPTOR PACK — 2 raptors in a flex row
+     Front raptor (left): full height, grounded
+     Back  raptor (right): 70% height, elevated + faded
+     Each img gets scaleX(-1) for opponent side
+  ══════════════════════════════════════════════════════════════ */
+  if (dinoId === 'velociraptor') {
+    const h        = typeof style?.height === 'number' ? style.height : 90;
+    const backH    = Math.round(h * 0.70);
+    const backElev = Math.round(h * 0.16);
+    const gap      = Math.max(4, Math.round(h * 0.07));
+    const flipT    = flipped ? 'scaleX(-1)' : undefined;
+    const f        = style?.filter;
+    const imgS: React.CSSProperties = {
+      objectFit: 'contain', userSelect: 'none', pointerEvents: 'none', flexShrink: 0,
+    };
 
     return (
       <div
         className={className}
         style={{
           ...style,
-          position: 'relative',
-          width: w,
+          display: 'inline-flex',
+          alignItems: 'flex-end',
+          gap,
           height: h,
-          // strip filter/transform from wrapper — applied per-img
+          width: 'auto',
           filter: undefined,
           transform: undefined,
         }}
       >
-        {/* Back-left bird — smallest, most transparent */}
-        <img
-          src={pterodactylus}
-          draggable={false}
-          alt="pterodactyl-1"
-          style={{
-            ...baseImg, ...flip,
-            position: 'absolute',
-            height: '55%',
-            width: 'auto',
-            bottom: '28%',
-            ...(flipped ? { right: '0%' } : { left: '0%' }),
-            opacity: 0.7,
-            filter: style?.filter,
-          }}
-        />
-        {/* Back-right bird — medium */}
-        <img
-          src={pterodactylus}
-          draggable={false}
-          alt="pterodactyl-2"
-          style={{
-            ...baseImg, ...flip,
-            position: 'absolute',
-            height: '70%',
-            width: 'auto',
-            bottom: '10%',
-            ...(flipped ? { left: '8%' } : { right: '8%' }),
-            opacity: 0.85,
-            filter: style?.filter,
-          }}
-        />
-        {/* Front-center bird — largest, full opacity */}
-        <img
-          src={pterodactylus}
-          draggable={false}
-          alt="pterodactyl-3"
-          style={{
-            ...baseImg, ...flip,
-            position: 'absolute',
-            height: '100%',
-            width: 'auto',
-            bottom: 0,
-            ...(flipped ? { right: '22%' } : { left: '22%' }),
-            filter: style?.filter,
-          }}
-        />
+        {/* Front raptor — full size, grounded */}
+        <img src={velociraptor} draggable={false} alt="raptor-front"
+          style={{ ...imgS, height: h, width: 'auto', transform: flipT, filter: f }} />
+        {/* Back raptor — smaller, elevated, faded */}
+        <img src={velociraptor} draggable={false} alt="raptor-back"
+          style={{ ...imgS, height: backH, width: 'auto', transform: flipT, filter: f, opacity: 0.78, marginBottom: backElev }} />
       </div>
     );
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     PTERODACTYL FLOCK — 3 birds in a flex row at varied heights
+     Order (L→R): upper-back | lead | mid-flank
+     Each at a different elevation via marginBottom, creating a
+     loose diagonal "diving formation" silhouette
+  ══════════════════════════════════════════════════════════════ */
+  if (dinoId === 'pterodactylus') {
+    const h      = typeof style?.height === 'number' ? style.height : 90;
+    const cH     = Math.round(h * 1.15); // extra height for upper bird
+    const bird1H = Math.round(h * 0.42); // small back bird
+    const bird2H = Math.round(h * 0.66); // medium mid bird
+    const gap    = Math.max(4, Math.round(h * 0.06));
+    const flipT  = flipped ? 'scaleX(-1)' : undefined;
+    const f      = style?.filter;
+    const imgS: React.CSSProperties = {
+      objectFit: 'contain', userSelect: 'none', pointerEvents: 'none', flexShrink: 0,
+    };
+
+    return (
+      <div
+        className={className}
+        style={{
+          ...style,
+          display: 'inline-flex',
+          alignItems: 'flex-end',
+          gap,
+          height: cH,
+          width: 'auto',
+          filter: undefined,
+          transform: undefined,
+        }}
+      >
+        {/* Small upper-back bird — high altitude, leftmost */}
+        <img src={pterodactylus} draggable={false} alt="ptero-back"
+          style={{ ...imgS, height: bird1H, width: 'auto', transform: flipT, filter: f,
+                   opacity: 0.60, marginBottom: Math.round(h * 0.64) }} />
+        {/* Lead bird — full size, lowest (closest to ground) */}
+        <img src={pterodactylus} draggable={false} alt="ptero-lead"
+          style={{ ...imgS, height: h, width: 'auto', transform: flipT, filter: f }} />
+        {/* Medium mid-flank bird — mid altitude, rightmost */}
+        <img src={pterodactylus} draggable={false} alt="ptero-mid"
+          style={{ ...imgS, height: bird2H, width: 'auto', transform: flipT, filter: f,
+                   opacity: 0.82, marginBottom: Math.round(h * 0.22) }} />
+      </div>
+    );
+  }
+
+  /* ── All other dinos: single image ── */
   return (
     <img
       src={DINO_IMAGES[dinoId]}
