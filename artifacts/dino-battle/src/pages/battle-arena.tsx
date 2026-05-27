@@ -132,6 +132,21 @@ export default function BattleArena() {
     }
   }, [isStunnedEarly, hasWinnerEarly]);
 
+  // Auto-switch opponent's next team member when theirs is KO'd
+  const awaitingSwitchEarly = ctx?.state?.awaitingSwitch;
+  useEffect(() => {
+    if (awaitingSwitchEarly === 'opponent') {
+      const bench = ctx?.state?.opponentTeam ?? [];
+      if (bench.length === 0) return;
+      const timer = setTimeout(() => {
+        const pick = bench[0];
+        ctx?.dispatch({ type: 'SWITCH_TEAM_MEMBER', attacker: 'opponent', nextDinoId: pick.dinoId });
+        setTimeout(() => triggerAICallbackRef.current(), 800);
+      }, 1600);
+      return () => clearTimeout(timer);
+    }
+  }, [awaitingSwitchEarly]);
+
   if (!ctx || !ctx.state.player || !ctx.state.opponent) return null;
 
   const { state: rawState, dispatch } = ctx;
@@ -320,6 +335,7 @@ export default function BattleArena() {
 
   const handleAction = (abilityId: string) => {
     if (!state.player) return;
+    if (state.awaitingSwitch) return;
     const ability = playerBase.abilities.find(a => a.id === abilityId);
     if (!ability) return;
     if (ability.isUltimate && state.player.ultimateUsed) return;
@@ -329,6 +345,7 @@ export default function BattleArena() {
   };
 
   const handleRest = () => {
+    if (state.awaitingSwitch) return;
     dispatch({ type: 'REST', attacker: 'player' });
     triggerAI();
   };
@@ -475,25 +492,26 @@ export default function BattleArena() {
                 <StatusBadge key={i} type={e.type} duration={e.duration} />
               ))}
             </div>
+            {state.gameMode === 'team' && state.opponentTeam.length > 0 && (
+              <div className="flex gap-1 mt-1 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                <span className="text-[8px] font-bold uppercase" style={{ color: '#888', alignSelf: 'center', marginRight: 2 }}>BENCH</span>
+                {state.opponentTeam.map(m => (
+                  <div key={m.dinoId} className="flex items-center justify-center rounded text-[7px] font-black uppercase"
+                    style={{ padding: '1px 4px', background: '#cc2222', color: 'white', border: '1px solid #991111' }}>
+                    {m.dinoId.slice(0, 4).toUpperCase()}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── OPPONENT PLATFORM ── */}
-        <div className="absolute" style={{ right: '4%', bottom: '28%', width: 230, pointerEvents: 'none', zIndex: 8 }}>
-          <div style={{ position: 'relative', height: 22, borderRadius: '50%',
-            background: 'linear-gradient(180deg, #7ed444 0%, #50a022 50%, #306410 100%)',
-            boxShadow: '0 6px 22px rgba(0,0,0,0.65), 0 -1px 0 rgba(255,255,255,0.18) inset' }}>
-            <div style={{ position:'absolute', top:4, left:'14%', width:'33%', height:4, borderRadius:3, background:'rgba(255,255,255,0.22)' }} />
-          </div>
-          <div style={{ height: 14, marginTop: -3, background: 'linear-gradient(180deg, #7a5520 0%, #3a2508 100%)', borderRadius:'0 0 50% 50%', boxShadow:'0 6px 14px rgba(0,0,0,0.55)' }}/>
-          <div style={{ height:10, marginTop:2, borderRadius:'50%', background:'radial-gradient(ellipse 85% 50% at 50% 30%, rgba(0,0,0,0.50) 0%, transparent 100%)' }}/>
-        </div>
 
         {/* ── OPPONENT DINO ── */}
         <motion.div
           key={`opp-${opponentAnim.key}`}
           className="absolute z-10"
-          style={{ right: '10%', bottom: 'calc(28% + 22px)' }}
+          style={{ right: '10%', bottom: '25%' }}
           initial={{ x: 80, opacity: 0 }}
           animate={opponentAnim.playing
             ? buildAnimate(opponentAnim, 'opponent')
@@ -526,22 +544,12 @@ export default function BattleArena() {
           />
         </motion.div>
 
-        {/* ── PLAYER PLATFORM ── */}
-        <div className="absolute" style={{ left: '3%', bottom: '4%', width: 282, pointerEvents: 'none', zIndex: 8 }}>
-          <div style={{ position: 'relative', height: 26, borderRadius: '50%',
-            background: 'linear-gradient(180deg, #86dc4a 0%, #56ac26 50%, #347214 100%)',
-            boxShadow: '0 6px 24px rgba(0,0,0,0.68), 0 -1px 0 rgba(255,255,255,0.20) inset' }}>
-            <div style={{ position:'absolute', top:5, left:'12%', width:'36%', height:5, borderRadius:3, background:'rgba(255,255,255,0.24)' }} />
-          </div>
-          <div style={{ height: 16, marginTop: -3, background: 'linear-gradient(180deg, #855e28 0%, #3e2a0a 100%)', borderRadius:'0 0 50% 50%', boxShadow:'0 6px 16px rgba(0,0,0,0.58)' }}/>
-          <div style={{ height:12, marginTop:2, borderRadius:'50%', background:'radial-gradient(ellipse 88% 52% at 50% 30%, rgba(0,0,0,0.52) 0%, transparent 100%)' }}/>
-        </div>
 
         {/* ── PLAYER DINO ── */}
         <motion.div
           key={`pl-${playerAnim.key}`}
           className="absolute z-10"
-          style={{ left: '8%', bottom: 'calc(4% + 28px)' }}
+          style={{ left: '8%', bottom: '4%' }}
           initial={playerAnim.key === 0 ? { x: -80, opacity: 0 } : false}
           animate={playerAnim.playing
             ? buildAnimate(playerAnim, 'player')
@@ -623,8 +631,68 @@ export default function BattleArena() {
                 <StatusBadge key={i} type={e.type} duration={e.duration} />
               ))}
             </div>
+            {state.gameMode === 'team' && state.playerTeam.length > 0 && (
+              <div className="flex gap-1 mt-1 pt-1" style={{ borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                <span className="text-[8px] font-bold uppercase" style={{ color: '#888', alignSelf: 'center', marginRight: 2 }}>BENCH</span>
+                {state.playerTeam.map(m => (
+                  <div key={m.dinoId} className="flex items-center justify-center rounded text-[7px] font-black uppercase"
+                    style={{ padding: '1px 4px', background: '#2266cc', color: 'white', border: '1px solid #1144aa' }}>
+                    {m.dinoId.slice(0, 4).toUpperCase()}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* ── TEAM SWITCH OVERLAY ── */}
+        {state.gameMode === 'team' && state.awaitingSwitch === 'player' && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(2px)' }}>
+            <div className="rounded-2xl p-5" style={{ background: '#1a2a3a', border: '3px solid #4488ee', maxWidth: 340, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+              <p className="font-black text-white text-center uppercase mb-1" style={{ fontSize: 15, letterSpacing: '0.1em' }}>
+                Fighter Down!
+              </p>
+              <p className="text-center mb-4" style={{ color: '#88aacc', fontSize: 11 }}>Choose your next dinosaur</p>
+              <div className="flex flex-col gap-2">
+                {state.playerTeam.map(member => {
+                  const base = DINOSAURS[member.dinoId];
+                  const hpPct = member.hp / base.maxHp;
+                  return (
+                    <button
+                      key={member.dinoId}
+                      onClick={() => dispatch({ type: 'SWITCH_TEAM_MEMBER', attacker: 'player', nextDinoId: member.dinoId })}
+                      className="flex items-center gap-3 rounded-xl"
+                      style={{ background: '#243445', border: '2px solid #4488ee', padding: '8px 12px', cursor: 'pointer', transition: 'all 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#2e4460')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#243445')}
+                    >
+                      <DinoSvg dinoId={member.dinoId} flipped={false} style={{ height: 44, width: 'auto', flexShrink: 0 }} />
+                      <div className="text-left flex-1">
+                        <p className="font-black text-white text-xs uppercase">{base.name}</p>
+                        <div className="mt-1" style={{ height: 4, background: '#1a2a3a', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${hpPct * 100}%`, height: '100%', background: hpPct > 0.5 ? '#44cc66' : hpPct > 0.25 ? '#ccaa22' : '#cc4422', borderRadius: 2 }} />
+                        </div>
+                        <p className="text-[10px] mt-0.5" style={{ color: '#88aacc' }}>HP {member.hp} / {base.maxHp}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Opponent awaiting switch message ── */}
+        {state.gameMode === 'team' && state.awaitingSwitch === 'opponent' && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}>
+            <div className="rounded-2xl px-8 py-6 text-center" style={{ background: '#2a1a1a', border: '3px solid #cc3322', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+              <p className="font-black text-white uppercase" style={{ fontSize: 16, letterSpacing: '0.1em' }}>💀 Fighter Down!</p>
+              <p className="mt-2" style={{ color: '#ff9988', fontSize: 12 }}>Opponent is sending in their next dinosaur…</p>
+            </div>
+          </div>
+        )}
 
         {/* Turn counter */}
         <div className="absolute top-3 right-3 z-20">
@@ -642,6 +710,14 @@ export default function BattleArena() {
           {isPlayerStunned && !state.winner ? (
             <p className="font-bold" style={{ color: '#cc2222', fontSize: 15, lineHeight: 1.5 }}>
               ⚠️ {playerBase.name} is stunned and cannot act this turn!
+            </p>
+          ) : state.awaitingSwitch === 'player' ? (
+            <p className="font-bold" style={{ color: '#2266cc', fontSize: 15, lineHeight: 1.5 }}>
+              ⚔️ Choose your next fighter from the overlay above!
+            </p>
+          ) : state.awaitingSwitch === 'opponent' ? (
+            <p className="font-bold" style={{ color: '#cc5522', fontSize: 15, lineHeight: 1.5 }}>
+              ⏳ Opponent is sending in their next fighter…
             </p>
           ) : (
             <p className="font-semibold" style={{ color: '#222', fontSize: 15, lineHeight: 1.55 }}>

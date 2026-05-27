@@ -23,6 +23,10 @@ function AppContent() {
     winner: null,
     phase: 'select',
     lastAttackerWasPlayer: false,
+    gameMode: '1v1' as const,
+    playerTeam: [],
+    opponentTeam: [],
+    awaitingSwitch: null,
   });
 
   return (
