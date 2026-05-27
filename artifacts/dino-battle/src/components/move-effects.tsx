@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import React from 'react';
+import { GAME_TIMING } from '@/lib/game-timing';
 
 // ── Particle Systems for Move Effects ───────────────────────────────────────
 
@@ -13,39 +14,39 @@ interface ParticleConfig {
 
 const PARTICLE_CONFIGS: Record<string, ParticleConfig> = {
   // Velociraptor moves
-  sickle_claw: { type: 'claw', color: '#c03020', count: 12, spread: 60, duration: 0.6 },
-  pack_feint: { type: 'slash', color: '#8888ff', count: 6, spread: 40, duration: 0.5 },
-  leap_strike: { type: 'claw', color: '#ff4444', count: 16, spread: 70, duration: 0.7 },
-  bite_raptor: { type: 'bite', color: '#880000', count: 8, spread: 50, duration: 0.5 },
-  frenzy_blitz: { type: 'claw', color: '#ff6600', count: 24, spread: 90, duration: 1.0 },
+  sickle_claw: { type: 'claw', color: '#c03020', count: 12, spread: 60, duration: 1.2 },
+  pack_feint: { type: 'slash', color: '#8888ff', count: 6, spread: 40, duration: 1.0 },
+  leap_strike: { type: 'claw', color: '#ff4444', count: 16, spread: 70, duration: 1.4 },
+  bite_raptor: { type: 'bite', color: '#880000', count: 8, spread: 50, duration: 1.0 },
+  frenzy_blitz: { type: 'claw', color: '#ff6600', count: 24, spread: 90, duration: 1.8 },
 
   // Giganotosaurus moves
-  crushing_bite: { type: 'bite', color: '#660000', count: 16, spread: 70, duration: 0.7 },
-  body_slam: { type: 'stomp', color: '#664422', count: 20, spread: 80, duration: 0.8 },
-  tail_sweep_giga: { type: 'tail', color: '#553311', count: 14, spread: 100, duration: 0.65 },
-  roar: { type: 'roar', color: '#ffaa00', count: 10, spread: 60, duration: 0.8 },
-  apex_domination: { type: 'stomp', color: '#cc0000', count: 30, spread: 110, duration: 1.2 },
+  crushing_bite: { type: 'bite', color: '#660000', count: 16, spread: 70, duration: 1.4 },
+  body_slam: { type: 'stomp', color: '#664422', count: 20, spread: 80, duration: 1.6 },
+  tail_sweep_giga: { type: 'tail', color: '#553311', count: 14, spread: 100, duration: 1.3 },
+  roar: { type: 'roar', color: '#ffaa00', count: 10, spread: 60, duration: 1.6 },
+  apex_domination: { type: 'stomp', color: '#cc0000', count: 30, spread: 110, duration: 2.0 },
 
   // Spinosaurus moves
-  sail_slam: { type: 'shockwave', color: '#4488aa', count: 12, spread: 65, duration: 0.55 },
-  tail_whip: { type: 'tail', color: '#335577', count: 10, spread: 95, duration: 0.6 },
-  ambush_strike: { type: 'bite', color: '#446688', count: 14, spread: 55, duration: 0.55 },
-  bite_spino: { type: 'bite', color: '#224466', count: 10, spread: 50, duration: 0.5 },
-  death_roll: { type: 'shockwave', color: '#006688', count: 22, spread: 85, duration: 1.0 },
+  sail_slam: { type: 'shockwave', color: '#4488aa', count: 12, spread: 65, duration: 1.1 },
+  tail_whip: { type: 'tail', color: '#335577', count: 10, spread: 95, duration: 1.2 },
+  ambush_strike: { type: 'bite', color: '#446688', count: 14, spread: 55, duration: 1.1 },
+  bite_spino: { type: 'bite', color: '#224466', count: 10, spread: 50, duration: 1.0 },
+  death_roll: { type: 'shockwave', color: '#006688', count: 22, spread: 85, duration: 1.8 },
 
   // T-Rex moves
-  rex_bite: { type: 'bite', color: '#550000', count: 18, spread: 75, duration: 0.7 },
-  stomp: { type: 'stomp', color: '#664400', count: 22, spread: 85, duration: 0.75 },
-  headbutt: { type: 'shockwave', color: '#773322', count: 16, spread: 70, duration: 0.6 },
-  rex_roar: { type: 'roar', color: '#ff8800', count: 14, spread: 70, duration: 0.9 },
-  tyrants_wrath: { type: 'bite', color: '#880000', count: 35, spread: 120, duration: 1.3 },
+  rex_bite: { type: 'bite', color: '#550000', count: 18, spread: 75, duration: 1.4 },
+  stomp: { type: 'stomp', color: '#664400', count: 22, spread: 85, duration: 1.5 },
+  headbutt: { type: 'shockwave', color: '#773322', count: 16, spread: 70, duration: 1.2 },
+  rex_roar: { type: 'roar', color: '#ff8800', count: 14, spread: 70, duration: 1.8 },
+  tyrants_wrath: { type: 'bite', color: '#880000', count: 35, spread: 120, duration: 2.2 },
 
   // Pterodactyl moves
-  talon_rake: { type: 'claw', color: '#aa8866', count: 18, spread: 65, duration: 0.55 },
-  aerial_dodge: { type: 'slash', color: '#88aadd', count: 8, spread: 50, duration: 0.6 },
-  beak_stab: { type: 'beak', color: '#664422', count: 12, spread: 55, duration: 0.5 },
-  screech: { type: 'roar', color: '#ddaa00', count: 12, spread: 65, duration: 0.7 },
-  screech_dive: { type: 'claw', color: '#ff6600', count: 28, spread: 100, duration: 1.0 },
+  talon_rake: { type: 'claw', color: '#aa8866', count: 18, spread: 65, duration: 1.1 },
+  aerial_dodge: { type: 'slash', color: '#88aadd', count: 8, spread: 50, duration: 1.2 },
+  beak_stab: { type: 'beak', color: '#664422', count: 12, spread: 55, duration: 1.0 },
+  screech: { type: 'roar', color: '#ddaa00', count: 12, spread: 65, duration: 1.4 },
+  screech_dive: { type: 'claw', color: '#ff6600', count: 28, spread: 100, duration: 1.8 },
 };
 
 // ── Particle Component ─────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ function MoveParticle({ type, color, index, total, spread }: {
       scale: 0
     },
     transition: {
-      duration: 0.4,
+      duration: 0.8, // Increased from 0.4 for slower particles
       ease: [0.4, 0, 0.2, 1]
     }
   });
@@ -141,7 +142,7 @@ function ImpactFlash({ color }: { color: string }) {
     initial: { opacity: 0, scale: 0.5 },
     animate: { opacity: [0, 0.8, 0], scale: [0.5, 1.5, 2] },
     exit: { opacity: 0 },
-    transition: { duration: 0.3, ease: 'easeOut' }
+    transition: { duration: 0.6, ease: 'easeOut' } // Increased from 0.3
   });
 }
 
@@ -215,7 +216,7 @@ export function DizzyStars({ active }: { active: boolean }) {
       rotate: [0, 360]
     },
     transition: {
-      duration: 1,
+      duration: 2, // Increased from 1 for slower rotation
       repeat: Infinity,
       ease: 'linear'
     }
@@ -244,7 +245,7 @@ export function ShieldEffect({ active, color = '#4488ff' }: {
       opacity: [0.7, 0.9, 0.7]
     },
     transition: {
-      duration: 1.5,
+      duration: 2.0, // Increased from 1.5 for slower pulse
       repeat: Infinity,
       ease: 'easeInOut'
     }
@@ -274,7 +275,7 @@ export function PowerUpEffect({ active, label }: {
       initial: { opacity: 0, y: 20, scale: 0.5 },
       animate: { opacity: 1, y: 0, scale: 1 },
       exit: { opacity: 0, y: -20, scale: 0.8 },
-      transition: { duration: 0.3 }
+      transition: { duration: 0.6 } // Increased from 0.3
     }, label)
   );
 }
@@ -295,7 +296,7 @@ export function BiteWound({ side }: { side: 'player' | 'opponent' }) {
     },
     initial: { opacity: 0, scale: 0.5 },
     animate: { opacity: [0, 1, 1, 0], scale: [0.5, 1, 1.2, 0] },
-    transition: { duration: 0.4 },
+    transition: { duration: 0.8 }, // Increased from 0.4
     exit: { opacity: 0 }
   },
     React.createElement('svg', {
@@ -353,7 +354,7 @@ export function ClawMarks({ count = 3, color = '#aa0000' }: {
         },
         initial: { opacity: 0, scale: 0.3, x: offset - 20 },
         animate: { opacity: [0, 1, 1, 0], scale: [0.3, 1, 1, 0], x: offset + 30 },
-        transition: { duration: 0.35, delay: i * 0.05 }
+        transition: { duration: 0.7, delay: i * 0.1 } // Increased base duration and delay
       })
     );
   }
@@ -387,7 +388,7 @@ export function GroundCrack({ active }: { active: boolean }) {
         },
         initial: { scale: 0, opacity: 0 },
         animate: { scale: [0, 1.2], opacity: [0, 1, 0.7] },
-        transition: { duration: 0.3, delay: i * 0.03 }
+        transition: { duration: 0.6, delay: i * 0.06 } // Increased duration and delay
       })
     );
   }
