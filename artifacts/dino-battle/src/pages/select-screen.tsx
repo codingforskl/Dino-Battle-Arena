@@ -147,7 +147,7 @@ function DinoCard({
       {/* Dino preview */}
       <div className="relative flex items-end justify-center mb-3 overflow-hidden"
         style={{
-          height: 130,
+          height: 160,
           background: flipped ? 'linear-gradient(180deg, #f0d8d4 0%, #dcc4c0 100%)' : 'linear-gradient(180deg, #c8ddf0 0%, #a8c4e0 100%)',
           borderRadius: 8,
           border: `1px solid ${flipped ? '#e4c8c4' : '#c8d4e4'}`

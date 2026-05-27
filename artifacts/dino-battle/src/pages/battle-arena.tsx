@@ -111,12 +111,26 @@ export default function BattleArena() {
   const [lastLog, setLastLog] = useState('');
   const [activeMoveEffect, setActiveMoveEffect] = useState<{ abilityId: string; side: 'player' | 'opponent' } | null>(null);
   const arenaRef = useRef<HTMLDivElement>(null);
+  const triggerAICallbackRef = useRef<() => void>(() => {});
 
   const logLength = ctx?.state.log.length ?? 0;
   useEffect(() => {
     const log = ctx?.state.log ?? [];
     if (log.length > 0) setLastLog(log[log.length - 1]);
   }, [logLength]);
+
+  // Auto-skip player turn when stunned, then trigger AI
+  const isStunnedEarly = !!(ctx?.state?.player?.statusEffects.some(e => e.type === 'stunned'));
+  const hasWinnerEarly = !!ctx?.state?.winner;
+  useEffect(() => {
+    if (isStunnedEarly && !hasWinnerEarly) {
+      const timer = setTimeout(() => {
+        ctx?.dispatch({ type: 'REST', attacker: 'player' });
+        setTimeout(() => triggerAICallbackRef.current(), 400);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [isStunnedEarly, hasWinnerEarly]);
 
   if (!ctx || !ctx.state.player || !ctx.state.opponent) return null;
 
@@ -266,7 +280,9 @@ export default function BattleArena() {
             if (a.damage && a.damage >= plState.hp) s += 250; // guaranteed KO
             else if (plHpPct < 0.45) s += 70;                 // player is vulnerable
             else if (aiHpPct < 0.22) s += 90;                 // desperate last stand
-            else s -= 15;                                       // save for right moment
+            else s -= 70;                                       // strongly hold back — save for the right moment
+            // Never open a fight with the ultimate
+            if (state.turnNumber <= 2) s -= 120;
           }
 
           // Slight random noise so AI isn't perfectly predictable
@@ -295,6 +311,9 @@ export default function BattleArena() {
     }, 1000);
   };
 
+  // Keep ref pointing at the latest triggerAI so effects can call it without stale closures
+  triggerAICallbackRef.current = triggerAI;
+
   const handleAction = (abilityId: string) => {
     if (!state.player) return;
     const ability = playerBase.abilities.find(a => a.id === abilityId);
@@ -314,8 +333,8 @@ export default function BattleArena() {
   const oRequiredBites = getRequiredBites(state.opponent.dinoId, state.player.dinoId);
 
   const maxH   = 4.0;
-  const oImgH  = Math.round((opponentBase.height / maxH) * 140 + 50);
-  const pImgH  = Math.round((playerBase.height / maxH) * 180 + 70);
+  const oImgH  = Math.round((opponentBase.height / maxH) * 100 + 40);
+  const pImgH  = Math.round((playerBase.height / maxH) * 130 + 55);
 
   const isPlayerStunned = state.player.statusEffects.some(e => e.type === 'stunned');
   const playerBlocked   = !!state.winner || isPlayerStunned;
