@@ -5,7 +5,7 @@ import { getRequiredBites } from '@/lib/game-engine';
 import { DinoSvg } from '@/components/dino-svg';
 import { MoveEffect } from '@/components/move-effects';
 import { motion, AnimatePresence } from 'framer-motion';
-import forestBg from '../assets/forest-bg.png';
+import arenaBg from '../assets/arena-bg.png';
 
 // ── Per-ability animation configs ───────────────────────────────────────────
 type AnimTarget = 'self' | 'opponent';
@@ -266,6 +266,10 @@ export default function BattleArena() {
           if (a.id === 'body_slam' || a.id === 'rex_roar') {
             const already = plState.statusEffects.some(e => e.type === 'stunned');
             s += already ? -40 : 45;
+            // Anti-chain-stun: heavily penalise re-stunning after the player was JUST stunned
+            // (covers the auto-skip cycle where stun wears off before AI's next pick)
+            const recentLog = state.log.slice(-5).join('|').toLowerCase();
+            if (recentLog.includes('stunned') || recentLog.includes('loses their next')) s -= 180;
           }
 
           // Buff/dodge — prioritise when low HP
@@ -393,8 +397,8 @@ export default function BattleArena() {
         className={`relative overflow-hidden flex-shrink-0 ${arenaShake ? 'arena-shake' : ''}`}
         style={{ height: '54vh' }}
       >
-        <img src={forestBg} alt="arena" className="absolute inset-0 w-full h-full object-cover object-center" style={{ opacity: 0.92 }} draggable={false} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(120,180,240,0.25) 0%, transparent 55%)' }} />
+        <img src={arenaBg} alt="arena" className="absolute inset-0 w-full h-full object-cover object-center" draggable={false} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(5,8,20,0.35) 0%, transparent 40%, rgba(15,8,4,0.5) 82%)' }} />
 
         {activeMoveEffect && (
           <MoveEffect
@@ -461,10 +465,10 @@ export default function BattleArena() {
               <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#e8f0ff', color: '#2266cc', border: '1px solid #99b8ee' }}>
                 SPD {state.opponent.statusEffects.some(e => e.type === 'slowed') ? Math.floor(opponentBase.baseSpeed / 2) : opponentBase.baseSpeed}
               </span>
-              {oRequiredBites > 1 && (
+              {pRequiredBites > 1 && (
                 <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#fff8e0', color: '#886600', border: '1px solid #ddc050' }}
-                  title={`Thick hide! Needs ${oRequiredBites} bites to fully penetrate`}>
-                  HIDE {state.opponent.biteProgress}/{oRequiredBites}
+                  title={`Thick hide! ${pRequiredBites} bites needed to penetrate`}>
+                  HIDE {state.player.biteProgress}/{pRequiredBites}
                 </span>
               )}
               {state.opponent.statusEffects.map((e, i) => (
@@ -474,35 +478,15 @@ export default function BattleArena() {
           </div>
         </div>
 
-        {/* ── OPPONENT STONE CLIFF PLATFORM ── */}
-        <div className="absolute" style={{ right: '6%', bottom: '28%', width: 230, pointerEvents: 'none', zIndex: 8 }}>
-          {/* Grass top */}
-          <div style={{ position: 'relative', height: 24, borderRadius: '50%',
-            background: 'linear-gradient(180deg, #a2dc5c 0%, #68b830 42%, #4a9018 100%)',
-            boxShadow: '0 -2px 0 rgba(255,255,255,0.18) inset, 0 7px 0 #2e6008, 0 11px 18px rgba(0,0,0,0.52)',
-            border: '1px solid #428016', zIndex: 2 }}>
-            <div style={{ position: 'absolute', top: 4, left: '14%', width: '36%', height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.26)' }} />
-            {[['22%','8','-10'],['37%','10','7'],['54%','7','-5'],['70%','9','8']].map(([l,h,r],i)=>(
-              <div key={i} style={{position:'absolute',top:`-${h}px`,left:l,width:3,height:`${h}px`,borderRadius:'2px 2px 0 0',background:'#84cc36',transform:`rotate(${r}deg)`}}/>
-            ))}
+        {/* ── OPPONENT PLATFORM ── */}
+        <div className="absolute" style={{ right: '4%', bottom: '28%', width: 230, pointerEvents: 'none', zIndex: 8 }}>
+          <div style={{ position: 'relative', height: 22, borderRadius: '50%',
+            background: 'linear-gradient(180deg, #7ed444 0%, #50a022 50%, #306410 100%)',
+            boxShadow: '0 6px 22px rgba(0,0,0,0.65), 0 -1px 0 rgba(255,255,255,0.18) inset' }}>
+            <div style={{ position:'absolute', top:4, left:'14%', width:'33%', height:4, borderRadius:3, background:'rgba(255,255,255,0.22)' }} />
           </div>
-          {/* Stone cliff face */}
-          <div style={{ height: 28, marginTop: -5, position: 'relative', overflow: 'hidden',
-            background: 'linear-gradient(180deg, #9e8e74 0%, #7e6e5c 50%, #5e5242 100%)',
-            boxShadow: 'inset 0 3px 0 rgba(255,255,255,0.14), inset 0 -3px 6px rgba(0,0,0,0.32)' }}>
-            <div style={{position:'absolute',top:8,left:0,right:0,height:1,background:'rgba(0,0,0,0.20)'}}/>
-            <div style={{position:'absolute',top:18,left:0,right:0,height:1,background:'rgba(0,0,0,0.15)'}}/>
-            <div style={{position:'absolute',top:2,left:'34%',width:1,height:20,background:'rgba(0,0,0,0.22)',transform:'rotate(4deg)'}}/>
-            <div style={{position:'absolute',top:5,left:'65%',width:1,height:16,background:'rgba(0,0,0,0.17)',transform:'rotate(-7deg)'}}/>
-            <div style={{position:'absolute',top:11,left:'20%',width:7,height:5,borderRadius:3,background:'rgba(0,0,0,0.18)'}}/>
-            <div style={{position:'absolute',top:15,left:'54%',width:6,height:4,borderRadius:3,background:'rgba(0,0,0,0.14)'}}/>
-          </div>
-          {/* Rounded dark bottom */}
-          <div style={{ height: 10, marginTop: -2, borderRadius: '0 0 50% 50%',
-            background: 'linear-gradient(180deg, #4e3e30 0%, #2e2418 100%)' }}/>
-          {/* Cast shadow */}
-          <div style={{ height: 12, marginTop: 3, borderRadius: '50%',
-            background: 'radial-gradient(ellipse 86% 52% at 50% 35%, rgba(0,0,0,0.40) 0%, transparent 100%)' }}/>
+          <div style={{ height: 14, marginTop: -3, background: 'linear-gradient(180deg, #7a5520 0%, #3a2508 100%)', borderRadius:'0 0 50% 50%', boxShadow:'0 6px 14px rgba(0,0,0,0.55)' }}/>
+          <div style={{ height:10, marginTop:2, borderRadius:'50%', background:'radial-gradient(ellipse 85% 50% at 50% 30%, rgba(0,0,0,0.50) 0%, transparent 100%)' }}/>
         </div>
 
         {/* ── OPPONENT DINO ── */}
@@ -542,36 +526,15 @@ export default function BattleArena() {
           />
         </motion.div>
 
-        {/* ── PLAYER STONE CLIFF PLATFORM ── */}
-        <div className="absolute" style={{ left: '4%', bottom: '4%', width: 282, pointerEvents: 'none', zIndex: 8 }}>
-          {/* Grass top */}
-          <div style={{ position: 'relative', height: 28, borderRadius: '50%',
-            background: 'linear-gradient(180deg, #aadc5c 0%, #6cc032 42%, #4e9a1a 100%)',
-            boxShadow: '0 -2px 0 rgba(255,255,255,0.20) inset, 0 8px 0 #2e6408, 0 12px 20px rgba(0,0,0,0.54)',
-            border: '1px solid #468418', zIndex: 2 }}>
-            <div style={{ position: 'absolute', top: 5, left: '12%', width: '38%', height: 5, borderRadius: 4, background: 'rgba(255,255,255,0.28)' }} />
-            {[['18%','10','-11'],['32%','12','7'],['49%','9','-5'],['63%','11','9'],['77%','9','-7']].map(([l,h,r],i)=>(
-              <div key={i} style={{position:'absolute',top:`-${h}px`,left:l,width:3,height:`${h}px`,borderRadius:'2px 2px 0 0',background:'#8ad03a',transform:`rotate(${r}deg)`}}/>
-            ))}
+        {/* ── PLAYER PLATFORM ── */}
+        <div className="absolute" style={{ left: '3%', bottom: '4%', width: 282, pointerEvents: 'none', zIndex: 8 }}>
+          <div style={{ position: 'relative', height: 26, borderRadius: '50%',
+            background: 'linear-gradient(180deg, #86dc4a 0%, #56ac26 50%, #347214 100%)',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.68), 0 -1px 0 rgba(255,255,255,0.20) inset' }}>
+            <div style={{ position:'absolute', top:5, left:'12%', width:'36%', height:5, borderRadius:3, background:'rgba(255,255,255,0.24)' }} />
           </div>
-          {/* Stone cliff face */}
-          <div style={{ height: 32, marginTop: -5, position: 'relative', overflow: 'hidden',
-            background: 'linear-gradient(180deg, #a09278 0%, #806c5c 50%, #605048 100%)',
-            boxShadow: 'inset 0 3px 0 rgba(255,255,255,0.15), inset 0 -3px 6px rgba(0,0,0,0.34)' }}>
-            <div style={{position:'absolute',top:9,left:0,right:0,height:1,background:'rgba(0,0,0,0.21)'}}/>
-            <div style={{position:'absolute',top:20,left:0,right:0,height:1,background:'rgba(0,0,0,0.16)'}}/>
-            <div style={{position:'absolute',top:3,left:'36%',width:1,height:22,background:'rgba(0,0,0,0.23)',transform:'rotate(5deg)'}}/>
-            <div style={{position:'absolute',top:6,left:'70%',width:1,height:17,background:'rgba(0,0,0,0.18)',transform:'rotate(-8deg)'}}/>
-            <div style={{position:'absolute',top:13,left:'18%',width:8,height:5,borderRadius:3,background:'rgba(0,0,0,0.19)'}}/>
-            <div style={{position:'absolute',top:17,left:'52%',width:7,height:5,borderRadius:3,background:'rgba(0,0,0,0.15)'}}/>
-            <div style={{position:'absolute',top:12,left:'82%',width:6,height:4,borderRadius:3,background:'rgba(0,0,0,0.14)'}}/>
-          </div>
-          {/* Rounded dark bottom */}
-          <div style={{ height: 11, marginTop: -2, borderRadius: '0 0 50% 50%',
-            background: 'linear-gradient(180deg, #504038 0%, #302818 100%)' }}/>
-          {/* Cast shadow */}
-          <div style={{ height: 14, marginTop: 3, borderRadius: '50%',
-            background: 'radial-gradient(ellipse 88% 54% at 50% 35%, rgba(0,0,0,0.44) 0%, transparent 100%)' }}/>
+          <div style={{ height: 16, marginTop: -3, background: 'linear-gradient(180deg, #855e28 0%, #3e2a0a 100%)', borderRadius:'0 0 50% 50%', boxShadow:'0 6px 16px rgba(0,0,0,0.58)' }}/>
+          <div style={{ height:12, marginTop:2, borderRadius:'50%', background:'radial-gradient(ellipse 88% 52% at 50% 30%, rgba(0,0,0,0.52) 0%, transparent 100%)' }}/>
         </div>
 
         {/* ── PLAYER DINO ── */}
@@ -650,10 +613,10 @@ export default function BattleArena() {
               <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#e8f0ff', color: '#2266cc', border: '1px solid #99b8ee' }}>
                 SPD {state.player.statusEffects.some(e => e.type === 'slowed') ? Math.floor(playerBase.baseSpeed / 2) : playerBase.baseSpeed}
               </span>
-              {pRequiredBites > 1 && (
+              {oRequiredBites > 1 && (
                 <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#fff8e0', color: '#886600', border: '1px solid #ddc050' }}
-                  title={`Thick hide! Needs ${pRequiredBites} bites to fully penetrate`}>
-                  HIDE {state.player.biteProgress}/{pRequiredBites}
+                  title={`Thick hide! ${oRequiredBites} bites needed to penetrate`}>
+                  HIDE {state.opponent.biteProgress}/{oRequiredBites}
                 </span>
               )}
               {state.player.statusEffects.map((e, i) => (

@@ -5,19 +5,19 @@ outputs = []
 id = "ppqpUULxfVtznRGAONSCe"
 uri = "file://artifacts/dino-battle/src/assets/velociraptor.png"
 type = "image"
-title = "velociraptor accurate game art"
+title = "velociraptor side profile"
 
 [[generated]]
 id = "gR-eAcCoGYS9uoNT3yWEN"
 uri = "file://artifacts/dino-battle/src/assets/giganotosaurus.png"
 type = "image"
-title = "giganotosaurus accurate game art"
+title = "giganotosaurus side profile"
 
 [[generated]]
 id = "SxOkDK5t2hM7wjbSYZo_7"
 uri = "file://artifacts/dino-battle/src/assets/spinosaurus.png"
 type = "image"
-title = "spinosaurus accurate game art"
+title = "spinosaurus side profile"
 
 [[generated]]
 id = "LdNX8pNZurbRrXlyuIr7v"
@@ -42,3 +42,21 @@ id = "ht3YNQbzdEQXV974KGRIw"
 uri = "file://attached_assets/generated_images/pterodactylus_pterosaur_dinosaur_cel_fdfe.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "GaJ88JPsWjJTQq3Ydw74D"
+uri = "file://artifacts/dino-battle/src/assets/arena-bg.png"
+type = "image"
+title = "volcanic arena background"
+
+[[generated]]
+id = "j-X_n1uuqcX3EAohnfLJd"
+uri = "file://artifacts/dino-battle/src/assets/trex.png"
+type = "image"
+title = "trex side profile"
+
+[[generated]]
+id = "4B0AedIj_FrKvJI9WkJoJ"
+uri = "file://artifacts/dino-battle/src/assets/pterodactylus.png"
+type = "image"
+title = "pterodactyl flock side"
