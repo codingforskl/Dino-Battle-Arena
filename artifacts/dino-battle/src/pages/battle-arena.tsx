@@ -5,6 +5,7 @@ import { getRequiredBites } from '@/lib/game-engine';
 import { DinoSvg } from '@/components/dino-svg';
 import { MoveEffect } from '@/components/move-effects';
 import { motion, AnimatePresence } from 'framer-motion';
+import { GAME_TIMING, getAdjustedDuration } from '@/lib/game-timing';
 import arenaBg from '../assets/arena-bg.png';
 
 // ── Per-ability animation configs ───────────────────────────────────────────
@@ -21,72 +22,72 @@ interface AnimConfig {
 
 const ABILITY_ANIMS: Record<string, AnimConfig> = {
   // ── Velociraptor Pack ──  (positive x = lunge toward opponent)
-  sickle_claw:     { target: 'opponent', duration: 0.40, showImpact: true,
+  sickle_claw:     { target: 'opponent', duration: getAdjustedDuration(0.40), showImpact: true,
     keyframes: { x:[0,72,24,0], y:[0,-18,8,0], rotate:[0,-22,6,0], scale:[1,1.07,1,1] } },
-  pack_feint:      { target: 'self', duration: 0.55,
+  pack_feint:      { target: 'self', duration: getAdjustedDuration(0.55),
     keyframes: { x:[0,-28,14,-8,0], y:[0,-12,6,0], rotate:[0,12,-5,0], scale:[1,1.12,0.93,1] } },
-  leap_strike:     { target: 'opponent', duration: 0.56, showImpact: true,
+  leap_strike:     { target: 'opponent', duration: getAdjustedDuration(0.56), showImpact: true,
     keyframes: { x:[0,90,34,0], y:[0,-70,-8,0], rotate:[0,-30,10,0], scale:[1,1.15,1,1] } },
-  bite_raptor:     { target: 'opponent', duration: 0.42, showImpact: true,
+  bite_raptor:     { target: 'opponent', duration: getAdjustedDuration(0.42), showImpact: true,
     keyframes: { x:[0,62,0], y:[0,-6,0], rotate:[0,-15,0], scale:[1,1.07,1] } },
-  frenzy_blitz:    { target: 'opponent', duration: 0.80, isUltimate: true, showImpact: true, showLightning: true,
+  frenzy_blitz:    { target: 'opponent', duration: getAdjustedDuration(0.80), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,70,26,80,34,0], y:[0,-24,10,-18,5,0], rotate:[0,-24,10,-16,8,0], scale:[1,1.24,1,1.20,1,1] } },
 
   // ── Giganotosaurus ──  (positive x = lunge toward opponent)
-  crushing_bite:   { target: 'opponent', duration: 0.52, showImpact: true,
+  crushing_bite:   { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
     keyframes: { x:[0,90,28,0], y:[0,10,-2,0], rotate:[0,-16,5,0], scale:[1.08,1.20,1,1] } },
-  body_slam:       { target: 'opponent', duration: 0.58, showImpact: true,
+  body_slam:       { target: 'opponent', duration: getAdjustedDuration(0.58), showImpact: true,
     keyframes: { x:[0,82,26,0], y:[0,24,6,0], rotate:[0,-10,3,0], scale:[1.05,1.24,1,1] } },
-  tail_sweep_giga: { target: 'opponent', duration: 0.55, showImpact: true,
+  tail_sweep_giga: { target: 'opponent', duration: getAdjustedDuration(0.55), showImpact: true,
     keyframes: { x:[0,-14,38,0], y:[0,5,0,0], rotate:[0,-44,10,0], scale:[1,1.07,1,1] } },
-  roar:            { target: 'self', duration: 0.65, showRoarRings: true,
+  roar:            { target: 'self', duration: getAdjustedDuration(0.65), showRoarRings: true,
     keyframes: { scale:[1,1.40,1.18,1.28,1], y:[0,-10,4,-6,0], rotate:[0,-6,3,-2,0] } },
-  apex_domination: { target: 'opponent', duration: 0.88, isUltimate: true, showImpact: true, showLightning: true,
+  apex_domination: { target: 'opponent', duration: getAdjustedDuration(0.88), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,100,34,0], y:[0,34,-5,0], rotate:[0,-24,5,0], scale:[1.15,1.34,1.05,1] } },
 
   // ── Spinosaurus ──  (positive x = lunge toward opponent)
-  sail_slam:       { target: 'opponent', duration: 0.48, showImpact: true,
+  sail_slam:       { target: 'opponent', duration: getAdjustedDuration(0.48), showImpact: true,
     keyframes: { x:[0,64,20,0], y:[0,-30,12,0], rotate:[0,-20,5,0], scale:[1,1.11,1,1] } },
-  tail_whip:       { target: 'opponent', duration: 0.52, showImpact: true,
+  tail_whip:       { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
     keyframes: { x:[0,-16,40,0], y:[0,5,-2,0], rotate:[0,-44,8,0], scale:[1,1.07,1,1] } },
-  ambush_strike:   { target: 'opponent', duration: 0.48, showImpact: true,
+  ambush_strike:   { target: 'opponent', duration: getAdjustedDuration(0.48), showImpact: true,
     keyframes: { x:[0,92,26,0], y:[0,6,0,0], rotate:[0,-14,3,0], scale:[1.10,1.14,1,1] } },
-  bite_spino:      { target: 'opponent', duration: 0.46, showImpact: true,
+  bite_spino:      { target: 'opponent', duration: getAdjustedDuration(0.46), showImpact: true,
     keyframes: { x:[0,64,18,0], y:[0,10,0,0], rotate:[0,-12,3,0], scale:[1,1.09,1,1] } },
-  death_roll:      { target: 'opponent', duration: 0.88, isUltimate: true, showImpact: true, showLightning: true,
+  death_roll:      { target: 'opponent', duration: getAdjustedDuration(0.88), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,70,88,44,0], y:[0,16,-5,22,0], rotate:[0,180,270,360,360], scale:[1.10,1.24,1.10,1,1] } },
 
   // ── T-Rex ──  (positive x = lunge toward opponent)
-  rex_bite:        { target: 'opponent', duration: 0.52, showImpact: true,
+  rex_bite:        { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
     keyframes: { x:[0,98,30,0], y:[0,12,0,0], rotate:[0,-18,4,0], scale:[1.12,1.26,1,1] } },
-  stomp:           { target: 'opponent', duration: 0.52, showImpact: true,
+  stomp:           { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
     keyframes: { x:[0,70,0], y:[0,40,-5,0], rotate:[0,-10,0], scale:[1,1.22,1] } },
-  headbutt:        { target: 'opponent', duration: 0.48, showImpact: true,
+  headbutt:        { target: 'opponent', duration: getAdjustedDuration(0.48), showImpact: true,
     keyframes: { x:[0,90,28,0], y:[0,-12,6,0], rotate:[0,-25,5,0], scale:[1.06,1.20,1,1] } },
-  rex_roar:        { target: 'self', duration: 0.75, showRoarRings: true,
+  rex_roar:        { target: 'self', duration: getAdjustedDuration(0.75), showRoarRings: true,
     keyframes: { scale:[1,1.50,1.24,1.38,1], y:[0,-14,6,-9,0], rotate:[0,-9,4,-4,0] } },
-  tyrants_wrath:   { target: 'opponent', duration: 0.92, isUltimate: true, showImpact: true, showLightning: true,
+  tyrants_wrath:   { target: 'opponent', duration: getAdjustedDuration(0.92), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,112,44,0], y:[0,16,-3,0], rotate:[0,-30,6,0], scale:[1.22,1.44,1.12,1] } },
 
   // ── Pterodactyl Flock ──  (positive x = dive toward opponent)
-  talon_rake:      { target: 'opponent', duration: 0.40, showImpact: true,
+  talon_rake:      { target: 'opponent', duration: getAdjustedDuration(0.40), showImpact: true,
     keyframes: { x:[0,82,26,0], y:[0,-30,12,0], rotate:[0,-30,8,0], scale:[1,1.11,1,1] } },
-  aerial_dodge:    { target: 'self', duration: 0.55,
+  aerial_dodge:    { target: 'self', duration: getAdjustedDuration(0.55),
     keyframes: { x:[0,-18,12,-6,0], y:[0,-42,-10,0], rotate:[0,-20,6,0], scale:[1,0.86,1,1] } },
-  beak_stab:       { target: 'opponent', duration: 0.38, showImpact: true,
+  beak_stab:       { target: 'opponent', duration: getAdjustedDuration(0.38), showImpact: true,
     keyframes: { x:[0,94,18,0], y:[0,-12,6,0], rotate:[0,-40,12,0], scale:[1,1.09,1,1] } },
-  screech:         { target: 'self', duration: 0.60, showRoarRings: true,
+  screech:         { target: 'self', duration: getAdjustedDuration(0.60), showRoarRings: true,
     keyframes: { scale:[1,1.30,1.12,1.20,1], x:[0,-6,5,-3,0], y:[0,-10,5,-4,0] } },
-  screech_dive:    { target: 'opponent', duration: 0.80, isUltimate: true, showImpact: true, showLightning: true,
+  screech_dive:    { target: 'opponent', duration: getAdjustedDuration(0.80), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,100,36,0], y:[0,-75,28,0], rotate:[0,-46,16,0], scale:[1,1.20,1.06,1] } },
 };
 
 const DEFAULT_ANIM: AnimConfig = {
-  target: 'opponent', duration: 0.5, showImpact: false,
+  target: 'opponent', duration: getAdjustedDuration(0.5), showImpact: false,
   keyframes: { x:[0,40,0], y:[0,0,0], rotate:[0,0,0], scale:[1,1,1] },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
 
 interface AnimState {
   playing: boolean;
@@ -126,8 +127,8 @@ export default function BattleArena() {
     if (isStunnedEarly && !hasWinnerEarly) {
       const timer = setTimeout(() => {
         ctx?.dispatch({ type: 'REST', attacker: 'player' });
-        setTimeout(() => triggerAICallbackRef.current(), 400);
-      }, 1200);
+        setTimeout(() => triggerAICallbackRef.current(), GAME_TIMING.AI_STUN_SKIP_DELAY);
+      }, GAME_TIMING.AI_STUN_SKIP_DELAY);
       return () => clearTimeout(timer);
     }
   }, [isStunnedEarly, hasWinnerEarly]);
@@ -141,8 +142,8 @@ export default function BattleArena() {
       const timer = setTimeout(() => {
         const pick = bench[0];
         ctx?.dispatch({ type: 'SWITCH_TEAM_MEMBER', attacker: 'opponent', nextDinoId: pick.dinoId });
-        setTimeout(() => triggerAICallbackRef.current(), 800);
-      }, 1600);
+        setTimeout(() => triggerAICallbackRef.current(), GAME_TIMING.OPPONENT_SWITCH_DELAY);
+      }, GAME_TIMING.OPPONENT_SWITCH_DELAY);
       return () => clearTimeout(timer);
     }
   }, [awaitingSwitchEarly]);
@@ -171,43 +172,43 @@ export default function BattleArena() {
 
     if (attacker === 'player') {
       setPlayerAnim(prev => ({ playing: true, config: cfg, key: prev.key + 1, isUltimate: isUlt }));
-      setTimeout(() => setPlayerAnim(IDLE), Math.round(cfg.duration * 1000) + 100);
+      setTimeout(() => setPlayerAnim(IDLE), Math.round(cfg.duration * 1000) + 200);
     } else {
       setOpponentAnim(prev => ({ playing: true, config: cfg, key: prev.key + 1, isUltimate: isUlt }));
-      setTimeout(() => setOpponentAnim(IDLE), Math.round(cfg.duration * 1000) + 100);
+      setTimeout(() => setOpponentAnim(IDLE), Math.round(cfg.duration * 1000) + 200);
     }
 
     if (isUlt) {
       setArenaShake(true);
-      setTimeout(() => setArenaShake(false), 600);
+      setTimeout(() => setArenaShake(false), GAME_TIMING.ARENA_SHAKE_DURATION);
       setShowUltEffect({ side: attacker, name: abilityName });
-      setTimeout(() => setShowUltEffect(null), 1200);
+      setTimeout(() => setShowUltEffect(null), GAME_TIMING.ULTIMATE_SCREEN_FLASH);
     }
 
     if (cfg.showRoarRings) {
       setShowRoar({ side: attacker });
-      setTimeout(() => setShowRoar(null), 700);
+      setTimeout(() => setShowRoar(null), GAME_TIMING.ROAR_RING_DURATION);
     }
 
     if (cfg.showImpact) {
       setTimeout(() => {
         const hitSide: 'player' | 'opponent' = attacker === 'player' ? 'opponent' : 'player';
         setShowImpact({ side: hitSide });
-        setTimeout(() => setShowImpact(null), 550);
+        setTimeout(() => setShowImpact(null), GAME_TIMING.IMPACT_FLASH_DURATION);
 
         if (isUlt) {
           setShowLightning({ side: hitSide });
-          setTimeout(() => setShowLightning(null), 500);
+          setTimeout(() => setShowLightning(null), GAME_TIMING.LIGHTNING_EFFECT_DURATION);
           setHitOpponent(attacker === 'player' ? 'ultimate' : null);
           setHitPlayer(attacker === 'opponent' ? 'ultimate' : null);
-          setTimeout(() => { setHitOpponent(null); setHitPlayer(null); }, 750);
+          setTimeout(() => { setHitOpponent(null); setHitPlayer(null); }, GAME_TIMING.HIT_EFFECT_DURATION);
         } else {
           if (attacker === 'player') {
             setHitOpponent('normal');
-            setTimeout(() => setHitOpponent(null), 460);
+            setTimeout(() => setHitOpponent(null), GAME_TIMING.HIT_EFFECT_DURATION);
           } else {
             setHitPlayer('normal');
-            setTimeout(() => setHitPlayer(null), 460);
+            setTimeout(() => setHitPlayer(null), GAME_TIMING.HIT_EFFECT_DURATION);
           }
         }
       }, hitDelay);
@@ -327,7 +328,7 @@ export default function BattleArena() {
         fireAnimation(pick.id, 'opponent', pick.name);
         dispatch({ type: 'USE_ABILITY', abilityId: pick.id, attacker: 'opponent' });
       }
-    }, 1000);
+    }, GAME_TIMING.AI_TURN_DELAY);
   };
 
   // Keep ref pointing at the latest triggerAI so effects can call it without stale closures
@@ -466,15 +467,20 @@ export default function BattleArena() {
             <div className="flex items-center gap-1 mb-1">
               <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>HP</span>
               <div className="flex-1 hp-bar-container">
-                <div className={`hp-bar-fill ${getHpClass(state.opponent.hp, opponentBase.maxHp)}`}
-                  style={{ width: `${Math.max(0, (state.opponent.hp / opponentBase.maxHp) * 100)}%` }} />
+                <motion.div className={`hp-bar-fill ${getHpClass(state.opponent.hp, opponentBase.maxHp)}`}
+                  animate={{ width: `${Math.max(0, (state.opponent.hp / opponentBase.maxHp) * 100)}%` }}
+                  transition={{ duration: GAME_TIMING.HP_BAR_ANIMATION / 1000 }}
+                />
               </div>
               <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.opponent.hp}</span>
             </div>
             <div className="flex items-center gap-1 mb-1">
               <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>ST</span>
               <div className="flex-1 hp-bar-container">
-                <div className="stam-bar-fill" style={{ width: `${Math.max(0, (state.opponent.stamina / opponentBase.maxStamina) * 100)}%` }} />
+                <motion.div className="stam-bar-fill"
+                  animate={{ width: `${Math.max(0, (state.opponent.stamina / opponentBase.maxStamina) * 100)}%` }}
+                  transition={{ duration: GAME_TIMING.STAMINA_BAR_ANIMATION / 1000 }}
+                />
               </div>
               <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.opponent.stamina}</span>
             </div>
@@ -517,7 +523,7 @@ export default function BattleArena() {
             ? buildAnimate(opponentAnim, 'opponent')
             : { x: 0, y: 0, rotate: 0, scale: state.opponent.hp <= 0 ? 0.7 : 1, opacity: 1 }}
           transition={{
-            duration: opponentAnim.playing ? opponentAnim.config.duration : 0.35,
+            duration: opponentAnim.playing ? opponentAnim.config.duration : 0.6,
             type: opponentAnim.playing ? 'tween' : 'spring',
             ease: opponentAnim.playing ? 'easeInOut' : undefined,
             stiffness: opponentAnim.playing ? undefined : 280,
@@ -555,7 +561,7 @@ export default function BattleArena() {
             ? buildAnimate(playerAnim, 'player')
             : { x: 0, y: 0, rotate: 0, scale: state.player.hp <= 0 ? 0.7 : 1, opacity: 1 }}
           transition={{
-            duration: playerAnim.playing ? playerAnim.config.duration : 0.35,
+            duration: playerAnim.playing ? playerAnim.config.duration : 0.6,
             type: playerAnim.playing ? 'tween' : 'spring',
             ease: playerAnim.playing ? 'easeInOut' : undefined,
             stiffness: playerAnim.playing ? undefined : 280,
@@ -605,15 +611,20 @@ export default function BattleArena() {
             <div className="flex items-center gap-1 mb-1">
               <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>HP</span>
               <div className="flex-1 hp-bar-container">
-                <div className={`hp-bar-fill ${getHpClass(state.player.hp, playerBase.maxHp)}`}
-                  style={{ width: `${Math.max(0, (state.player.hp / playerBase.maxHp) * 100)}%` }} />
+                <motion.div className={`hp-bar-fill ${getHpClass(state.player.hp, playerBase.maxHp)}`}
+                  animate={{ width: `${Math.max(0, (state.player.hp / playerBase.maxHp) * 100)}%` }}
+                  transition={{ duration: GAME_TIMING.HP_BAR_ANIMATION / 1000 }}
+                />
               </div>
               <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.player.hp}</span>
             </div>
             <div className="flex items-center gap-1 mb-1">
               <span className="text-xs font-bold" style={{ color: '#444', width: 24 }}>ST</span>
               <div className="flex-1 hp-bar-container">
-                <div className="stam-bar-fill" style={{ width: `${Math.max(0, (state.player.stamina / playerBase.maxStamina) * 100)}%` }} />
+                <motion.div className="stam-bar-fill"
+                  animate={{ width: `${Math.max(0, (state.player.stamina / playerBase.maxStamina) * 100)}%` }}
+                  transition={{ duration: GAME_TIMING.STAMINA_BAR_ANIMATION / 1000 }}
+                />
               </div>
               <span className="text-xs font-mono ml-1" style={{ color: '#444' }}>{state.player.stamina}</span>
             </div>
@@ -696,7 +707,7 @@ export default function BattleArena() {
 
         {/* Turn counter */}
         <div className="absolute top-3 right-3 z-20">
-          <div style={{ background: 'rgba(255,255,255,0.85)', border: '2px solid #888', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, color: '#444', boxShadow: '2px 2px 0 #bbb' }}>
+          <div style={{ background: 'rgba(255,255,255,0.85)', border: '2px solid #888', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, color: '#444', boxShadow: '2px 2px 0 rgba(0,0,0,0.2)' }}>
             TURN {state.turnNumber}
           </div>
         </div>
