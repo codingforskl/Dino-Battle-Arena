@@ -837,14 +837,18 @@ export default function BattleArena() {
                           PWR {a.damage}{a.isUltimate ? '!' : ''}
                         </span>
                       )}
-                      {a.id === 'raptor_surround' && !disabled && (
-                        <span className="text-[9px] mt-0.5" style={{ color: '#9933cc', fontWeight: 700 }}>STUN</span>
-                      )}
-                      {a.id === 'jugular_slash' && !disabled && (
-                        <span className="text-[9px] mt-0.5" style={{ color: '#cc0000', fontWeight: 700 }}>🩸 BLEED</span>
-                      )}
-                      {a.id === 'terror_dive' && !disabled && (
-                        <span className="text-[9px] mt-0.5" style={{ color: '#9933cc', fontWeight: 700 }}>STUN</span>
+                      {a.shortEffect && (
+                        <span className="text-[9px] mt-0.5 leading-tight" style={{
+                          color: a.isUltimate ? '#885500'
+                            : a.type === 'debuff' ? '#9933cc'
+                            : a.type === 'buff' ? '#116622'
+                            : a.shortEffect.includes('bleeding') || a.shortEffect.includes('🩸') ? '#cc0000'
+                            : '#555',
+                          fontWeight: 600,
+                          fontStyle: 'italic',
+                        }}>
+                          {a.shortEffect}
+                        </span>
                       )}
                       {alreadyUsed && (
                         <span className="text-[9px]" style={{ color: '#999', fontStyle: 'italic' }}>Used</span>
