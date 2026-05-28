@@ -18,21 +18,29 @@ export interface GameState {
   winner: 'player' | 'opponent' | null;
   phase: 'select' | 'battle' | 'victory';
   lastAttackerWasPlayer: boolean;
-  gameMode: '1v1' | 'team';
+  gameMode: '1v1' | 'team' | 'hunt';
   playerTeam: CombatantState[];
   opponentTeam: CombatantState[];
   awaitingSwitch: 'player' | 'opponent' | null;
   playerCombo: number;
   opponentCombo: number;
   lastCrit: boolean;
+  // Strict turn order
+  activeTurn: 'player' | 'opponent';
+  roundStarter: 'player' | 'opponent';
+  // Wild Hunt
+  capturedDinos: DinoId[];
+  huntRemainingWild: DinoId[];
 }
 
 export type GameAction =
   | { type: 'START_BATTLE'; playerDino: DinoId; opponentDino: DinoId }
   | { type: 'START_TEAM_BATTLE'; playerTeam: DinoId[]; opponentTeam: DinoId[] }
+  | { type: 'START_HUNT'; playerDino: DinoId }
   | { type: 'SWITCH_TEAM_MEMBER'; attacker: 'player' | 'opponent'; nextDinoId: DinoId }
   | { type: 'USE_ABILITY'; abilityId: string; attacker: 'player' | 'opponent' }
   | { type: 'REST'; attacker: 'player' | 'opponent' }
+  | { type: 'CAPTURE_ATTEMPT'; success: boolean }
   | { type: 'RESET' };
 
 export function initializeCombatant(dinoId: DinoId, isPlayer: boolean): CombatantState {
@@ -55,59 +63,116 @@ export function getRequiredBites(_attacker: DinoId, defender: DinoId): number {
   return 3;
 }
 
+function calcTurnOrder(playerDinoId: DinoId, oppDinoId: DinoId): 'player' | 'opponent' {
+  const ps = DINOSAURS[playerDinoId].baseSpeed;
+  const os = DINOSAURS[oppDinoId].baseSpeed;
+  if (ps > os) return 'player';
+  if (os > ps) return 'opponent';
+  return Math.random() < 0.5 ? 'player' : 'opponent';
+}
+
 function applyBleedingAtTurnStart(
   combatant: CombatantState,
   log: string[],
-  base: ReturnType<typeof Object.values<typeof DINOSAURS>[number]>
+  name: string
 ): CombatantState {
   const bleed = combatant.statusEffects.find(e => e.type === 'bleeding');
   if (!bleed) return combatant;
   const bleedDmg = 10;
   const newHp = Math.max(0, combatant.hp - bleedDmg);
-  log.push(`🩸 ${base.name} is bleeding — takes ${bleedDmg} damage!`);
+  log.push(`🩸 ${name} is bleeding — takes ${bleedDmg} damage!`);
   return { ...combatant, hp: newHp };
 }
 
+const EMPTY_STATE: GameState = {
+  player: null,
+  opponent: null,
+  turnNumber: 0,
+  log: [],
+  winner: null,
+  phase: 'select',
+  lastAttackerWasPlayer: false,
+  gameMode: '1v1',
+  playerTeam: [],
+  opponentTeam: [],
+  awaitingSwitch: null,
+  playerCombo: 0,
+  opponentCombo: 0,
+  lastCrit: false,
+  activeTurn: 'player',
+  roundStarter: 'player',
+  capturedDinos: [],
+  huntRemainingWild: [],
+};
+
+export const INITIAL_GAME_STATE: GameState = EMPTY_STATE;
+
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case 'START_BATTLE':
+    case 'START_BATTLE': {
+      const activeTurn = calcTurnOrder(action.playerDino, action.opponentDino);
       return {
-        ...state,
+        ...EMPTY_STATE,
         player: initializeCombatant(action.playerDino, true),
         opponent: initializeCombatant(action.opponentDino, false),
         turnNumber: 1,
-        log: [`Battle started! ${DINOSAURS[action.playerDino].name} vs ${DINOSAURS[action.opponentDino].name}`],
+        log: [
+          `Battle started! ${DINOSAURS[action.playerDino].name} vs ${DINOSAURS[action.opponentDino].name}`,
+          activeTurn === 'player'
+            ? `⚡ ${DINOSAURS[action.playerDino].name} is faster — YOU go first!`
+            : `⚡ ${DINOSAURS[action.opponentDino].name} is faster — OPPONENT goes first!`,
+        ],
         phase: 'battle',
-        winner: null,
-        lastAttackerWasPlayer: false,
         gameMode: '1v1',
-        playerTeam: [],
-        opponentTeam: [],
-        awaitingSwitch: null,
-        playerCombo: 0,
-        opponentCombo: 0,
-        lastCrit: false,
+        activeTurn,
+        roundStarter: activeTurn,
       };
+    }
 
     case 'START_TEAM_BATTLE': {
       const [pFirst, ...pBench] = action.playerTeam.map(id => initializeCombatant(id, true));
       const [oFirst, ...oBench] = action.opponentTeam.map(id => initializeCombatant(id, false));
+      const activeTurn = calcTurnOrder(pFirst.dinoId, oFirst.dinoId);
       return {
-        ...state,
+        ...EMPTY_STATE,
         player: pFirst,
         opponent: oFirst,
         playerTeam: pBench,
         opponentTeam: oBench,
         turnNumber: 1,
-        log: [`Team Battle! ${DINOSAURS[pFirst.dinoId].name} vs ${DINOSAURS[oFirst.dinoId].name}`],
+        log: [
+          `Team Battle! ${DINOSAURS[pFirst.dinoId].name} vs ${DINOSAURS[oFirst.dinoId].name}`,
+          activeTurn === 'player' ? `⚡ YOU go first!` : `⚡ OPPONENT goes first!`,
+        ],
         phase: 'battle',
-        winner: null,
-        lastAttackerWasPlayer: false,
         gameMode: 'team',
-        awaitingSwitch: null,
-        playerCombo: 0,
-        opponentCombo: 0,
-        lastCrit: false,
+        activeTurn,
+        roundStarter: activeTurn,
+      };
+    }
+
+    case 'START_HUNT': {
+      const allDinos = Object.keys(DINOSAURS) as DinoId[];
+      const wildPool = allDinos.filter(id => id !== action.playerDino);
+      const shuffled = [...wildPool].sort(() => Math.random() - 0.5);
+      const firstWild = shuffled[0];
+      const remaining = shuffled.slice(1);
+      const activeTurn = calcTurnOrder(action.playerDino, firstWild);
+      return {
+        ...EMPTY_STATE,
+        player: initializeCombatant(action.playerDino, true),
+        opponent: initializeCombatant(firstWild, false),
+        turnNumber: 1,
+        log: [
+          `🌿 WILD HUNT BEGINS! A wild ${DINOSAURS[firstWild].name} appears!`,
+          activeTurn === 'player' ? `⚡ YOU go first!` : `⚡ Wild ${DINOSAURS[firstWild].name} strikes first!`,
+        ],
+        phase: 'battle',
+        gameMode: 'hunt',
+        activeTurn,
+        roundStarter: activeTurn,
+        capturedDinos: [],
+        huntRemainingWild: remaining,
       };
     }
 
@@ -119,7 +184,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const freshMember = initializeCombatant(action.nextDinoId, isPlayer);
       const newBench = bench.filter(m => m.dinoId !== action.nextDinoId);
       const base = DINOSAURS[action.nextDinoId];
-      const log = [...state.log, `${base.name} enters the battle!`];
+
+      // Recalculate turn order after switch
+      const playerDinoId = isPlayer ? action.nextDinoId : state.player!.dinoId;
+      const oppDinoId = !isPlayer ? action.nextDinoId : state.opponent!.dinoId;
+      const activeTurn = calcTurnOrder(playerDinoId, oppDinoId);
+
       return {
         ...state,
         player: isPlayer ? freshMember : state.player,
@@ -127,8 +197,67 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playerTeam: isPlayer ? newBench : state.playerTeam,
         opponentTeam: !isPlayer ? newBench : state.opponentTeam,
         awaitingSwitch: null,
-        log,
+        activeTurn,
+        roundStarter: activeTurn,
+        log: [...state.log, `${base.name} enters the battle!`, activeTurn === 'player' ? `⚡ YOU go first!` : `⚡ OPPONENT goes first!`],
       };
+    }
+
+    case 'CAPTURE_ATTEMPT': {
+      if (!state.player || !state.opponent) return state;
+      const wildBase = DINOSAURS[state.opponent.dinoId];
+
+      if (action.success) {
+        const capturedId = state.opponent.dinoId;
+        const newCaptured = [...state.capturedDinos, capturedId];
+        const newQueue = [...state.huntRemainingWild];
+
+        if (newQueue.length === 0) {
+          return {
+            ...state,
+            capturedDinos: newCaptured,
+            huntRemainingWild: [],
+            winner: 'player',
+            phase: 'victory',
+            log: [...state.log, `🎉 ${wildBase.name} captured! You caught ALL dinosaurs — LEGENDARY HUNTER!`],
+          };
+        }
+
+        const nextWild = newQueue.shift()!;
+        const nextOpponent = initializeCombatant(nextWild, false);
+        const activeTurn = calcTurnOrder(state.player.dinoId, nextWild);
+        return {
+          ...state,
+          opponent: nextOpponent,
+          capturedDinos: newCaptured,
+          huntRemainingWild: newQueue,
+          activeTurn,
+          roundStarter: activeTurn,
+          lastCrit: false,
+          playerCombo: 0,
+          opponentCombo: 0,
+          log: [
+            ...state.log,
+            `🎉 ${wildBase.name} captured! (${newCaptured.length} caught)`,
+            `🌿 A wild ${DINOSAURS[nextWild].name} appears!`,
+            activeTurn === 'player' ? `⚡ YOU go first!` : `⚡ Wild ${DINOSAURS[nextWild].name} strikes first!`,
+          ],
+        };
+      } else {
+        // Capture failed — wild dino enrages
+        const enragedOpponent = {
+          ...state.opponent,
+          statusEffects: [
+            ...state.opponent.statusEffects.filter(e => e.type !== 'enraged'),
+            { type: 'enraged', duration: 2 },
+          ],
+        };
+        return {
+          ...state,
+          opponent: enragedOpponent,
+          log: [...state.log, `❌ Net missed! ${wildBase.name} breaks free — ENRAGED for 2 turns! +25% damage!`],
+        };
+      }
     }
 
     case 'USE_ABILITY': {
@@ -146,8 +275,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       let newLog = [...state.log];
 
-      // ── Bleeding damage at start of attacker's turn ──────────────────
-      attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase as any);
+      // ── Bleeding at turn start ───────────────────────────────────────
+      attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase.name);
       if (attackerState.hp === 0) {
         newLog.push(`${attackerBase.name} bled out before they could act!`);
         const winner: 'player' | 'opponent' = isPlayerAttacking ? 'opponent' : 'player';
@@ -155,10 +284,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state,
           player: isPlayerAttacking ? attackerState : defenderState,
           opponent: isPlayerAttacking ? defenderState : attackerState,
-          log: newLog,
-          winner,
-          phase: 'victory',
-          lastCrit: false,
+          log: newLog, winner, phase: 'victory', lastCrit: false,
         };
       }
 
@@ -169,21 +295,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       if (ability.isUltimate) attackerState.ultimateUsed = true;
 
-      // ── Intimidated debuff ───────────────────────────────────────────
-      const isIntimidated = attackerState.statusEffects.some(e => e.type === 'intimidated');
-      if (isIntimidated && damage > 0) {
+      // ── Intimidated debuff ──────────────────────────────────────────
+      if (attackerState.statusEffects.some(e => e.type === 'intimidated') && damage > 0) {
         damage = Math.floor(damage * 0.65);
         newLog.push(`${attackerBase.name} is intimidated — attack weakened!`);
       }
 
-      // ── Desperate Fury: low HP last-stand bonus ──────────────────────
+      // ── Desperate Fury ──────────────────────────────────────────────
       const hpPct = attackerState.hp / attackerBase.maxHp;
       if (hpPct < 0.22 && damage > 0) {
         damage = Math.floor(damage * 1.25);
-        newLog.push(`🔥 DESPERATE FURY! ${attackerBase.name} fights with everything they have! +25% damage!`);
+        newLog.push(`🔥 DESPERATE FURY! +25% damage!`);
       }
 
-      // ── Bite / hide penetration ──────────────────────────────────────
+      // ── Enraged (wild hunt) ─────────────────────────────────────────
+      if (attackerState.statusEffects.some(e => e.type === 'enraged') && damage > 0) {
+        damage = Math.floor(damage * 1.25);
+      }
+
+      // ── Bite / hide penetration ─────────────────────────────────────
       const isBite = ability.name.toLowerCase().includes('bite') || ability.id.includes('bite');
       if (isBite && !ability.isUltimate) {
         const requiredBites = getRequiredBites(attackerState.dinoId, defenderState.dinoId);
@@ -194,100 +324,115 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             newLog.push(`Thick hide! Bite is glancing. Penetration: ${attackerState.biteProgress}/${requiredBites}`);
           } else {
             attackerState.biteProgress = requiredBites;
-            newLog.push(`Hide penetrated! Dealing full bite damage!`);
+            newLog.push(`Hide penetrated! Full bite damage!`);
           }
         }
       }
 
-      // ── Death Roll bonus ─────────────────────────────────────────────
+      // ── Death Roll bonus ────────────────────────────────────────────
       if (ability.id === 'death_roll') {
         const bonusDmg = Math.floor(defenderBase.maxHp * 0.12);
         damage += bonusDmg;
-        newLog.push(`Death roll tears through armor! +${bonusDmg} bonus damage!`);
+        newLog.push(`Death roll tears through armor! +${bonusDmg} bonus!`);
       }
 
-      // ── Ambush Strike bonus ──────────────────────────────────────────
+      // ── Ambush bonus ────────────────────────────────────────────────
       if (ability.id === 'ambush_strike' && !state.lastAttackerWasPlayer) {
-        const bonus = 12;
-        damage += bonus;
-        newLog.push(`Ambush! Opponent was open after attacking — +${bonus} bonus damage!`);
+        damage += 12;
+        newLog.push(`Ambush! +12 bonus damage!`);
       }
 
-      // ── Combo Streak bonus ───────────────────────────────────────────
+      // ── Speed damage bonus ──────────────────────────────────────────
+      if (damage > 0 && ability.type === 'attack') {
+        const atkSpd = attackerState.statusEffects.some(e => e.type === 'slowed')
+          ? Math.floor(attackerBase.baseSpeed / 2) : attackerBase.baseSpeed;
+        const defSpd = defenderState.statusEffects.some(e => e.type === 'slowed')
+          ? Math.floor(defenderBase.baseSpeed / 2) : defenderBase.baseSpeed;
+        const ratio = atkSpd / Math.max(1, defSpd);
+        let spdBonus = 0;
+        if (ratio >= 3.0) spdBonus = 0.30;
+        else if (ratio >= 2.0) spdBonus = 0.20;
+        else if (ratio >= 1.4) spdBonus = 0.10;
+        if (spdBonus > 0) {
+          const bonusDmg = Math.floor(damage * spdBonus);
+          damage += bonusDmg;
+          newLog.push(`💨 Speed advantage! +${Math.round(spdBonus * 100)}% damage! (+${bonusDmg})`);
+        }
+      }
+
+      // ── Combo streak ────────────────────────────────────────────────
       const currentCombo = isPlayerAttacking ? state.playerCombo : state.opponentCombo;
       const newCombo = currentCombo + 1;
       if (newCombo >= 2 && damage > 0) {
-        const comboBonus = Math.min(newCombo - 1, 3) * 0.10;
-        const bonusDmg = Math.floor(damage * comboBonus);
+        const pct = Math.min(newCombo - 1, 3) * 0.10;
+        const bonusDmg = Math.floor(damage * pct);
         damage += bonusDmg;
-        newLog.push(`🔗 Combo x${newCombo}! +${Math.round(comboBonus * 100)}% damage bonus! (+${bonusDmg})`);
+        newLog.push(`🔗 Combo ×${newCombo}! +${Math.round(pct * 100)}% (+${bonusDmg})`);
       }
 
-      // ── Critical Hit (15% chance) ────────────────────────────────────
+      // ── Critical hit ────────────────────────────────────────────────
       if (damage > 0 && !ability.isUltimate && Math.random() < 0.15) {
         const critBonus = Math.floor(damage * 0.5);
         damage += critBonus;
         isCrit = true;
-        newLog.push(`⚡ CRITICAL HIT! ${attackerBase.name} lands a devastating blow! +${critBonus} bonus!`);
+        newLog.push(`⚡ CRITICAL HIT! +${critBonus} bonus!`);
       }
 
-      // ── Status effects applied by ability ───────────────────────────
+      // ── Ability status effects ───────────────────────────────────────
       if (ability.id === 'pack_feint') {
         attackerState.statusEffects.push({ type: 'evade', duration: 1 });
-        newLog.push(`${attackerBase.name} is braced to dodge the next attack!`);
+        newLog.push(`${attackerBase.name} braced to dodge!`);
       }
       if (ability.id === 'aerial_dodge') {
         attackerState.statusEffects.push({ type: 'evade', duration: 1 });
-        newLog.push(`${attackerBase.name} takes to the air — 60% dodge chance!`);
+        newLog.push(`${attackerBase.name} takes to the air — 60% dodge!`);
       }
       if (ability.id === 'raptor_surround') {
         defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
-        newLog.push(`${defenderBase.name} is surrounded and disoriented — loses next move!`);
+        newLog.push(`${defenderBase.name} is surrounded — STUNNED!`);
       }
       if (ability.id === 'jugular_slash') {
         defenderState.statusEffects.push({ type: 'bleeding', duration: 3 });
-        newLog.push(`🩸 ${defenderBase.name} is bleeding! Takes 10 damage per turn for 3 turns!`);
+        newLog.push(`🩸 ${defenderBase.name} is BLEEDING for 3 turns!`);
       }
       if (ability.id === 'terror_dive') {
         defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
-        newLog.push(`${defenderBase.name} is battered from above — stunned for 1 turn!`);
+        newLog.push(`${defenderBase.name} battered from above — STUNNED!`);
       }
       if (ability.id === 'body_slam' || ability.id === 'apex_domination') {
         defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
-        newLog.push(`${defenderBase.name} was stunned and loses their next move!`);
+        newLog.push(`${defenderBase.name} STUNNED — loses next move!`);
       }
       if (ability.id === 'rex_roar') {
         defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
-        newLog.push(`${defenderBase.name} is paralysed with fear — loses next move!`);
+        newLog.push(`${defenderBase.name} paralysed with fear — STUNNED!`);
       }
       if (ability.id === 'roar') {
         defenderState.statusEffects.push({ type: 'intimidated', duration: 2 });
-        newLog.push(`${defenderBase.name} is intimidated — attack reduced for 2 turns!`);
+        newLog.push(`${defenderBase.name} intimidated — attack reduced 2 turns!`);
       }
       if (ability.id === 'tail_sweep_giga' || ability.id === 'stomp') {
         defenderState.statusEffects.push({ type: 'slowed', duration: 2 });
-        newLog.push(`${defenderBase.name} is slowed — speed halved for 2 turns!`);
+        newLog.push(`${defenderBase.name} SLOWED — speed halved 2 turns!`);
       }
       if (ability.id === 'screech' || ability.id === 'screech_dive') {
         defenderState.statusEffects.push({ type: 'blinded', duration: 1 });
-        newLog.push(`${defenderBase.name} is blinded — 40% miss chance next attack!`);
+        newLog.push(`${defenderBase.name} BLINDED — 40% miss chance!`);
       }
 
-      // ── Blinded miss chance ─────────────────────────────────────────
-      const isBlinded = attackerState.statusEffects.some(e => e.type === 'blinded');
-      if (isBlinded && ability.type === 'attack' && Math.random() < 0.4) {
+      // ── Blinded miss ────────────────────────────────────────────────
+      if (attackerState.statusEffects.some(e => e.type === 'blinded') && ability.type === 'attack' && Math.random() < 0.4) {
         damage = 0;
         isCrit = false;
-        newLog.push(`${attackerBase.name} is blinded and missed the attack!`);
+        newLog.push(`${attackerBase.name} is blinded and missed!`);
       }
 
-      // ── Evade dodge check ────────────────────────────────────────────
+      // ── Evade dodge ─────────────────────────────────────────────────
       const hasEvade = defenderState.statusEffects.find(e => e.type === 'evade');
       if (hasEvade && ability.type === 'attack') {
         const evadeChance = defenderState.dinoId === 'pterodactylus' ? 0.6 : 0.5;
         if (Math.random() < evadeChance) {
-          damage = 0;
-          isCrit = false;
+          damage = 0; isCrit = false;
           newLog.push(`${defenderBase.name} dodged the attack!`);
         } else {
           newLog.push(`${defenderBase.name} tried to dodge but failed!`);
@@ -309,6 +454,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       defenderState.hp = newDefenderHp;
       attackerState.stamina = newAttackerStamina;
 
+      // Flip active turn
+      const newActiveTurn: 'player' | 'opponent' = isPlayerAttacking ? 'opponent' : 'player';
+      const newPlayerCombo = isPlayerAttacking ? newCombo : 0;
+      const newOpponentCombo = !isPlayerAttacking ? newCombo : 0;
+
       let winner: 'player' | 'opponent' | null = state.winner;
       let awaitingSwitch: 'player' | 'opponent' | null = state.awaitingSwitch;
 
@@ -316,6 +466,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newLog.push(`${defenderBase.name} was defeated!`);
         if (state.gameMode === '1v1') {
           winner = isPlayerAttacking ? 'player' : 'opponent';
+        } else if (state.gameMode === 'hunt') {
+          // In hunt, opponent KO means player wins this encounter but hasn't captured
+          winner = isPlayerAttacking ? 'player' : 'opponent';
+          if (isPlayerAttacking) newLog.push(`Wild ${defenderBase.name} fled before you could capture it!`);
         } else {
           const remainingBench = isPlayerAttacking ? state.opponentTeam : state.playerTeam;
           if (remainingBench.length === 0) {
@@ -324,14 +478,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           } else {
             awaitingSwitch = isPlayerAttacking ? 'opponent' : 'player';
             newLog.push(isPlayerAttacking
-              ? `Opponent still has ${remainingBench.length} fighter(s)!`
-              : `You still have ${remainingBench.length} fighter(s) — send in your next!`);
+              ? `Opponent has ${remainingBench.length} fighter(s) left!`
+              : `You have ${remainingBench.length} fighter(s) left — choose your next!`);
           }
         }
       }
-
-      const newPlayerCombo = isPlayerAttacking ? newCombo : 0;
-      const newOpponentCombo = !isPlayerAttacking ? newCombo : 0;
 
       return {
         ...state,
@@ -346,6 +497,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playerCombo: newPlayerCombo,
         opponentCombo: newOpponentCombo,
         lastCrit: isCrit,
+        activeTurn: winner ? state.activeTurn : newActiveTurn,
       };
     }
 
@@ -357,16 +509,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const attackerBase = DINOSAURS[attackerState.dinoId];
       let newLog = [...state.log];
 
-      // ── Bleeding still ticks on rest ─────────────────────────────────
-      attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase as any);
-
+      attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase.name);
       attackerState.stamina = Math.min(attackerBase.maxStamina, attackerState.stamina + 25);
       attackerState.statusEffects = attackerState.statusEffects
         .map(e => ({ ...e, duration: e.duration - 1 }))
         .filter(e => e.duration > 0);
 
-      newLog.push(`${attackerBase.name} rested and recovered 25 stamina.`);
+      newLog.push(`${attackerBase.name} rested — +25 stamina.`);
 
+      const newActiveTurn: 'player' | 'opponent' = isPlayerAttacking ? 'opponent' : 'player';
       const newPlayerCombo = isPlayerAttacking ? 0 : state.playerCombo;
       const newOpponentCombo = !isPlayerAttacking ? 0 : state.opponentCombo;
 
@@ -380,27 +531,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playerCombo: newPlayerCombo,
         opponentCombo: newOpponentCombo,
         lastCrit: false,
+        activeTurn: newActiveTurn,
       };
     }
 
-    case 'RESET': {
-      return {
-        player: null,
-        opponent: null,
-        turnNumber: 0,
-        log: [],
-        winner: null,
-        phase: 'select',
-        lastAttackerWasPlayer: false,
-        gameMode: '1v1',
-        playerTeam: [],
-        opponentTeam: [],
-        awaitingSwitch: null,
-        playerCombo: 0,
-        opponentCombo: 0,
-        lastCrit: false,
-      };
-    }
+    case 'RESET':
+      return EMPTY_STATE;
 
     default:
       return state;

@@ -1,33 +1,20 @@
 import React from 'react';
-import { Switch, Route, useLocation } from 'wouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { GameState, gameReducer } from '@/lib/game-engine';
+import { INITIAL_GAME_STATE, gameReducer } from '@/lib/game-engine';
 import SelectScreen from '@/pages/select-screen';
 import BattleArena from '@/pages/battle-arena';
 
 const queryClient = new QueryClient();
 
 export const GameContext = React.createContext<{
-  state: GameState;
+  state: ReturnType<typeof gameReducer>;
   dispatch: React.Dispatch<any>;
 } | null>(null);
 
 function AppContent() {
-  const [state, dispatch] = React.useReducer(gameReducer, {
-    player: null,
-    opponent: null,
-    turnNumber: 0,
-    log: [],
-    winner: null,
-    phase: 'select',
-    lastAttackerWasPlayer: false,
-    gameMode: '1v1' as const,
-    playerTeam: [],
-    opponentTeam: [],
-    awaitingSwitch: null,
-  });
+  const [state, dispatch] = React.useReducer(gameReducer, INITIAL_GAME_STATE);
 
   return (
     <GameContext.Provider value={{ state, dispatch }}>
