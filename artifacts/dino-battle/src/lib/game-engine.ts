@@ -22,6 +22,9 @@ export interface GameState {
   playerTeam: CombatantState[];
   opponentTeam: CombatantState[];
   awaitingSwitch: 'player' | 'opponent' | null;
+  playerCombo: number;
+  opponentCombo: number;
+  lastCrit: boolean;
 }
 
 export type GameAction =
@@ -52,6 +55,19 @@ export function getRequiredBites(_attacker: DinoId, defender: DinoId): number {
   return 3;
 }
 
+function applyBleedingAtTurnStart(
+  combatant: CombatantState,
+  log: string[],
+  base: ReturnType<typeof Object.values<typeof DINOSAURS>[number]>
+): CombatantState {
+  const bleed = combatant.statusEffects.find(e => e.type === 'bleeding');
+  if (!bleed) return combatant;
+  const bleedDmg = 10;
+  const newHp = Math.max(0, combatant.hp - bleedDmg);
+  log.push(`🩸 ${base.name} is bleeding — takes ${bleedDmg} damage!`);
+  return { ...combatant, hp: newHp };
+}
+
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'START_BATTLE':
@@ -68,6 +84,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playerTeam: [],
         opponentTeam: [],
         awaitingSwitch: null,
+        playerCombo: 0,
+        opponentCombo: 0,
+        lastCrit: false,
       };
 
     case 'START_TEAM_BATTLE': {
@@ -86,6 +105,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         lastAttackerWasPlayer: false,
         gameMode: 'team',
         awaitingSwitch: null,
+        playerCombo: 0,
+        opponentCombo: 0,
+        lastCrit: false,
       };
     }
 
@@ -113,8 +135,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.player || !state.opponent || state.winner) return state;
 
       const isPlayerAttacking = action.attacker === 'player';
-      const attackerState = isPlayerAttacking ? { ...state.player } : { ...state.opponent };
-      const defenderState = isPlayerAttacking ? { ...state.opponent } : { ...state.player };
+      let attackerState = isPlayerAttacking ? { ...state.player } : { ...state.opponent };
+      let defenderState = isPlayerAttacking ? { ...state.opponent } : { ...state.player };
 
       const attackerBase = DINOSAURS[attackerState.dinoId];
       const defenderBase = DINOSAURS[defenderState.dinoId];
@@ -122,17 +144,46 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       if (!ability || attackerState.stamina < ability.staminaCost) return state;
 
+      let newLog = [...state.log];
+
+      // ── Bleeding damage at start of attacker's turn ──────────────────
+      attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase as any);
+      if (attackerState.hp === 0) {
+        newLog.push(`${attackerBase.name} bled out before they could act!`);
+        const winner: 'player' | 'opponent' = isPlayerAttacking ? 'opponent' : 'player';
+        return {
+          ...state,
+          player: isPlayerAttacking ? attackerState : defenderState,
+          opponent: isPlayerAttacking ? defenderState : attackerState,
+          log: newLog,
+          winner,
+          phase: 'victory',
+          lastCrit: false,
+        };
+      }
+
+      newLog.push(`${attackerBase.name} used ${ability.name}!`);
+
       let damage = ability.damage || 0;
-      let newLog = [...state.log, `${attackerBase.name} used ${ability.name}!`];
+      let isCrit = false;
 
       if (ability.isUltimate) attackerState.ultimateUsed = true;
 
+      // ── Intimidated debuff ───────────────────────────────────────────
       const isIntimidated = attackerState.statusEffects.some(e => e.type === 'intimidated');
       if (isIntimidated && damage > 0) {
         damage = Math.floor(damage * 0.65);
         newLog.push(`${attackerBase.name} is intimidated — attack weakened!`);
       }
 
+      // ── Desperate Fury: low HP last-stand bonus ──────────────────────
+      const hpPct = attackerState.hp / attackerBase.maxHp;
+      if (hpPct < 0.22 && damage > 0) {
+        damage = Math.floor(damage * 1.25);
+        newLog.push(`🔥 DESPERATE FURY! ${attackerBase.name} fights with everything they have! +25% damage!`);
+      }
+
+      // ── Bite / hide penetration ──────────────────────────────────────
       const isBite = ability.name.toLowerCase().includes('bite') || ability.id.includes('bite');
       if (isBite && !ability.isUltimate) {
         const requiredBites = getRequiredBites(attackerState.dinoId, defenderState.dinoId);
@@ -148,12 +199,39 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
+      // ── Death Roll bonus ─────────────────────────────────────────────
       if (ability.id === 'death_roll') {
         const bonusDmg = Math.floor(defenderBase.maxHp * 0.12);
         damage += bonusDmg;
         newLog.push(`Death roll tears through armor! +${bonusDmg} bonus damage!`);
       }
 
+      // ── Ambush Strike bonus ──────────────────────────────────────────
+      if (ability.id === 'ambush_strike' && !state.lastAttackerWasPlayer) {
+        const bonus = 12;
+        damage += bonus;
+        newLog.push(`Ambush! Opponent was open after attacking — +${bonus} bonus damage!`);
+      }
+
+      // ── Combo Streak bonus ───────────────────────────────────────────
+      const currentCombo = isPlayerAttacking ? state.playerCombo : state.opponentCombo;
+      const newCombo = currentCombo + 1;
+      if (newCombo >= 2 && damage > 0) {
+        const comboBonus = Math.min(newCombo - 1, 3) * 0.10;
+        const bonusDmg = Math.floor(damage * comboBonus);
+        damage += bonusDmg;
+        newLog.push(`🔗 Combo x${newCombo}! +${Math.round(comboBonus * 100)}% damage bonus! (+${bonusDmg})`);
+      }
+
+      // ── Critical Hit (15% chance) ────────────────────────────────────
+      if (damage > 0 && !ability.isUltimate && Math.random() < 0.15) {
+        const critBonus = Math.floor(damage * 0.5);
+        damage += critBonus;
+        isCrit = true;
+        newLog.push(`⚡ CRITICAL HIT! ${attackerBase.name} lands a devastating blow! +${critBonus} bonus!`);
+      }
+
+      // ── Status effects applied by ability ───────────────────────────
       if (ability.id === 'pack_feint') {
         attackerState.statusEffects.push({ type: 'evade', duration: 1 });
         newLog.push(`${attackerBase.name} is braced to dodge the next attack!`);
@@ -161,6 +239,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (ability.id === 'aerial_dodge') {
         attackerState.statusEffects.push({ type: 'evade', duration: 1 });
         newLog.push(`${attackerBase.name} takes to the air — 60% dodge chance!`);
+      }
+      if (ability.id === 'raptor_surround') {
+        defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
+        newLog.push(`${defenderBase.name} is surrounded and disoriented — loses next move!`);
+      }
+      if (ability.id === 'jugular_slash') {
+        defenderState.statusEffects.push({ type: 'bleeding', duration: 3 });
+        newLog.push(`🩸 ${defenderBase.name} is bleeding! Takes 10 damage per turn for 3 turns!`);
+      }
+      if (ability.id === 'terror_dive') {
+        defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
+        newLog.push(`${defenderBase.name} is battered from above — stunned for 1 turn!`);
       }
       if (ability.id === 'body_slam' || ability.id === 'apex_domination') {
         defenderState.statusEffects.push({ type: 'stunned', duration: 1 });
@@ -183,23 +273,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newLog.push(`${defenderBase.name} is blinded — 40% miss chance next attack!`);
       }
 
-      if (ability.id === 'ambush_strike' && !state.lastAttackerWasPlayer) {
-        const bonus = 12;
-        damage += bonus;
-        newLog.push(`Ambush! Opponent was open after attacking — +${bonus} bonus damage!`);
-      }
-
+      // ── Blinded miss chance ─────────────────────────────────────────
       const isBlinded = attackerState.statusEffects.some(e => e.type === 'blinded');
       if (isBlinded && ability.type === 'attack' && Math.random() < 0.4) {
         damage = 0;
+        isCrit = false;
         newLog.push(`${attackerBase.name} is blinded and missed the attack!`);
       }
 
+      // ── Evade dodge check ────────────────────────────────────────────
       const hasEvade = defenderState.statusEffects.find(e => e.type === 'evade');
       if (hasEvade && ability.type === 'attack') {
         const evadeChance = defenderState.dinoId === 'pterodactylus' ? 0.6 : 0.5;
         if (Math.random() < evadeChance) {
           damage = 0;
+          isCrit = false;
           newLog.push(`${defenderBase.name} dodged the attack!`);
         } else {
           newLog.push(`${defenderBase.name} tried to dodge but failed!`);
@@ -242,6 +330,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
+      const newPlayerCombo = isPlayerAttacking ? newCombo : 0;
+      const newOpponentCombo = !isPlayerAttacking ? newCombo : 0;
+
       return {
         ...state,
         player: isPlayerAttacking ? attackerState : defenderState,
@@ -252,6 +343,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         phase: winner ? 'victory' : state.phase,
         lastAttackerWasPlayer: isPlayerAttacking,
         awaitingSwitch,
+        playerCombo: newPlayerCombo,
+        opponentCombo: newOpponentCombo,
+        lastCrit: isCrit,
       };
     }
 
@@ -259,15 +353,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.player || !state.opponent || state.winner) return state;
 
       const isPlayerAttacking = action.attacker === 'player';
-      const attackerState = isPlayerAttacking ? { ...state.player } : { ...state.opponent };
+      let attackerState = isPlayerAttacking ? { ...state.player } : { ...state.opponent };
       const attackerBase = DINOSAURS[attackerState.dinoId];
+      let newLog = [...state.log];
+
+      // ── Bleeding still ticks on rest ─────────────────────────────────
+      attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase as any);
 
       attackerState.stamina = Math.min(attackerBase.maxStamina, attackerState.stamina + 25);
       attackerState.statusEffects = attackerState.statusEffects
         .map(e => ({ ...e, duration: e.duration - 1 }))
         .filter(e => e.duration > 0);
 
-      const newLog = [...state.log, `${attackerBase.name} rested and recovered 25 stamina.`];
+      newLog.push(`${attackerBase.name} rested and recovered 25 stamina.`);
+
+      const newPlayerCombo = isPlayerAttacking ? 0 : state.playerCombo;
+      const newOpponentCombo = !isPlayerAttacking ? 0 : state.opponentCombo;
 
       return {
         ...state,
@@ -276,6 +377,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         log: newLog,
         turnNumber: state.turnNumber + (isPlayerAttacking ? 0 : 1),
         lastAttackerWasPlayer: isPlayerAttacking,
+        playerCombo: newPlayerCombo,
+        opponentCombo: newOpponentCombo,
+        lastCrit: false,
       };
     }
 
@@ -292,6 +396,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         playerTeam: [],
         opponentTeam: [],
         awaitingSwitch: null,
+        playerCombo: 0,
+        opponentCombo: 0,
+        lastCrit: false,
       };
     }
 

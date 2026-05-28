@@ -21,19 +21,21 @@ interface AnimConfig {
 }
 
 const ABILITY_ANIMS: Record<string, AnimConfig> = {
-  // ── Velociraptor Pack ──  (positive x = lunge toward opponent)
+  // ── Velociraptor Pack ──
   sickle_claw:     { target: 'opponent', duration: getAdjustedDuration(0.40), showImpact: true,
     keyframes: { x:[0,72,24,0], y:[0,-18,8,0], rotate:[0,-22,6,0], scale:[1,1.07,1,1] } },
   pack_feint:      { target: 'self', duration: getAdjustedDuration(0.55),
     keyframes: { x:[0,-28,14,-8,0], y:[0,-12,6,0], rotate:[0,12,-5,0], scale:[1,1.12,0.93,1] } },
+  raptor_surround: { target: 'opponent', duration: getAdjustedDuration(0.60), showImpact: true,
+    keyframes: { x:[0,40,80,60,0], y:[0,-20,-5,10,0], rotate:[0,-15,5,-8,0], scale:[1,1.08,1.12,1,1] } },
+  jugular_slash:   { target: 'opponent', duration: getAdjustedDuration(0.44), showImpact: true,
+    keyframes: { x:[0,76,28,0], y:[0,-30,4,0], rotate:[0,-28,10,0], scale:[1,1.14,1,1] } },
   leap_strike:     { target: 'opponent', duration: getAdjustedDuration(0.56), showImpact: true,
     keyframes: { x:[0,90,34,0], y:[0,-70,-8,0], rotate:[0,-30,10,0], scale:[1,1.15,1,1] } },
-  bite_raptor:     { target: 'opponent', duration: getAdjustedDuration(0.42), showImpact: true,
-    keyframes: { x:[0,62,0], y:[0,-6,0], rotate:[0,-15,0], scale:[1,1.07,1] } },
   frenzy_blitz:    { target: 'opponent', duration: getAdjustedDuration(0.80), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,70,26,80,34,0], y:[0,-24,10,-18,5,0], rotate:[0,-24,10,-16,8,0], scale:[1,1.24,1,1.20,1,1] } },
 
-  // ── Giganotosaurus ──  (positive x = lunge toward opponent)
+  // ── Giganotosaurus ──
   crushing_bite:   { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
     keyframes: { x:[0,90,28,0], y:[0,10,-2,0], rotate:[0,-16,5,0], scale:[1.08,1.20,1,1] } },
   body_slam:       { target: 'opponent', duration: getAdjustedDuration(0.58), showImpact: true,
@@ -45,7 +47,7 @@ const ABILITY_ANIMS: Record<string, AnimConfig> = {
   apex_domination: { target: 'opponent', duration: getAdjustedDuration(0.88), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,100,34,0], y:[0,34,-5,0], rotate:[0,-24,5,0], scale:[1.15,1.34,1.05,1] } },
 
-  // ── Spinosaurus ──  (positive x = lunge toward opponent)
+  // ── Spinosaurus ──
   sail_slam:       { target: 'opponent', duration: getAdjustedDuration(0.48), showImpact: true,
     keyframes: { x:[0,64,20,0], y:[0,-30,12,0], rotate:[0,-20,5,0], scale:[1,1.11,1,1] } },
   tail_whip:       { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
@@ -57,7 +59,7 @@ const ABILITY_ANIMS: Record<string, AnimConfig> = {
   death_roll:      { target: 'opponent', duration: getAdjustedDuration(0.88), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,70,88,44,0], y:[0,16,-5,22,0], rotate:[0,180,270,360,360], scale:[1.10,1.24,1.10,1,1] } },
 
-  // ── T-Rex ──  (positive x = lunge toward opponent)
+  // ── T-Rex ──
   rex_bite:        { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
     keyframes: { x:[0,98,30,0], y:[0,12,0,0], rotate:[0,-18,4,0], scale:[1.12,1.26,1,1] } },
   stomp:           { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
@@ -69,15 +71,17 @@ const ABILITY_ANIMS: Record<string, AnimConfig> = {
   tyrants_wrath:   { target: 'opponent', duration: getAdjustedDuration(0.92), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,112,44,0], y:[0,16,-3,0], rotate:[0,-30,6,0], scale:[1.22,1.44,1.12,1] } },
 
-  // ── Pterodactyl Flock ──  (positive x = dive toward opponent)
+  // ── Pterodactyl Flock ──
   talon_rake:      { target: 'opponent', duration: getAdjustedDuration(0.40), showImpact: true,
     keyframes: { x:[0,82,26,0], y:[0,-30,12,0], rotate:[0,-30,8,0], scale:[1,1.11,1,1] } },
   aerial_dodge:    { target: 'self', duration: getAdjustedDuration(0.55),
     keyframes: { x:[0,-18,12,-6,0], y:[0,-42,-10,0], rotate:[0,-20,6,0], scale:[1,0.86,1,1] } },
-  beak_stab:       { target: 'opponent', duration: getAdjustedDuration(0.38), showImpact: true,
-    keyframes: { x:[0,94,18,0], y:[0,-12,6,0], rotate:[0,-40,12,0], scale:[1,1.09,1,1] } },
+  terror_dive:     { target: 'opponent', duration: getAdjustedDuration(0.52), showImpact: true,
+    keyframes: { x:[0,60,30,0], y:[0,-60,8,0], rotate:[0,-45,15,0], scale:[1,1.18,1,1] } },
   screech:         { target: 'self', duration: getAdjustedDuration(0.60), showRoarRings: true,
     keyframes: { scale:[1,1.30,1.12,1.20,1], x:[0,-6,5,-3,0], y:[0,-10,5,-4,0] } },
+  beak_stab:       { target: 'opponent', duration: getAdjustedDuration(0.38), showImpact: true,
+    keyframes: { x:[0,94,18,0], y:[0,-12,6,0], rotate:[0,-40,12,0], scale:[1,1.09,1,1] } },
   screech_dive:    { target: 'opponent', duration: getAdjustedDuration(0.80), isUltimate: true, showImpact: true, showLightning: true,
     keyframes: { x:[0,100,36,0], y:[0,-75,28,0], rotate:[0,-46,16,0], scale:[1,1.20,1.06,1] } },
 };
@@ -111,6 +115,7 @@ export default function BattleArena() {
   const [arenaShake, setArenaShake] = useState(false);
   const [lastLog, setLastLog] = useState('');
   const [activeMoveEffect, setActiveMoveEffect] = useState<{ abilityId: string; side: 'player' | 'opponent' } | null>(null);
+  const [showCritFlash, setShowCritFlash] = useState(false);
   const arenaRef = useRef<HTMLDivElement>(null);
   const triggerAICallbackRef = useRef<() => void>(() => {});
 
@@ -119,6 +124,16 @@ export default function BattleArena() {
     const log = ctx?.state.log ?? [];
     if (log.length > 0) setLastLog(log[log.length - 1]);
   }, [logLength]);
+
+  // Show crit flash when a crit lands
+  const lastCrit = ctx?.state.lastCrit ?? false;
+  useEffect(() => {
+    if (lastCrit) {
+      setShowCritFlash(true);
+      const t = setTimeout(() => setShowCritFlash(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [lastCrit, logLength]);
 
   // Auto-skip player turn when stunned, then trigger AI
   const isStunnedEarly = !!(ctx?.state?.player?.statusEffects.some(e => e.type === 'stunned'));
@@ -151,7 +166,6 @@ export default function BattleArena() {
   if (!ctx || !ctx.state.player || !ctx.state.opponent) return null;
 
   const { state: rawState, dispatch } = ctx;
-  // player & opponent are guaranteed non-null — guarded by early return above
   const state = rawState as Omit<typeof rawState, 'player' | 'opponent'> & {
     player: NonNullable<typeof rawState.player>;
     opponent: NonNullable<typeof rawState.opponent>;
@@ -223,7 +237,6 @@ export default function BattleArena() {
         const plState    = ctx.state.player!;
         const plBase     = DINOSAURS[plState.dinoId];
 
-        // Stunned — skip turn
         if (aiState.statusEffects.some(e => e.type === 'stunned')) {
           dispatch({ type: 'REST', attacker: 'opponent' });
           return;
@@ -233,7 +246,6 @@ export default function BattleArena() {
         const plHpPct  = plState.hp / plBase.maxHp;
         const aiStamPct = aiState.stamina / aiBase.maxStamina;
 
-        // Rest if critically low on stamina and not in immediate danger
         if (aiStamPct < 0.18 && aiHpPct > 0.3) {
           dispatch({ type: 'REST', attacker: 'opponent' });
           return;
@@ -248,28 +260,22 @@ export default function BattleArena() {
           return;
         }
 
-        // Score each ability with context-aware heuristics
         const scoreAbility = (a: typeof validAbilities[number]): number => {
           let s = 0;
 
-          // Base: attack damage value
           if (a.type === 'attack' && a.damage) {
             s += a.damage * 1.5;
-            // Going for the finish — massive bonus if this can KO
             if (a.damage >= plState.hp) s += 200;
-            // Press the advantage when player is low
             if (plHpPct < 0.3) s += 40;
           }
 
-          // Stamina efficiency
           if (a.damage && a.staminaCost > 0) {
             s += (a.damage / a.staminaCost) * 4;
           }
 
-          // Debuffs — only useful if target doesn't already have that effect
           if (a.id === 'roar' || a.id === 'rex_roar') {
             const already = plState.statusEffects.some(e => e.type === 'intimidated' || e.type === 'stunned');
-            s += already ? -30 : (aiHpPct > 0.6 ? 50 : 20); // use early when healthy
+            s += already ? -30 : (aiHpPct > 0.6 ? 50 : 20);
           }
           if (a.id === 'screech') {
             const already = plState.statusEffects.some(e => e.type === 'blinded');
@@ -277,35 +283,33 @@ export default function BattleArena() {
           }
           if (a.id === 'tail_sweep_giga' || a.id === 'stomp') {
             const already = plState.statusEffects.some(e => e.type === 'slowed');
-            s += already ? -5 : 18; // still has damage so never fully penalise
+            s += already ? -5 : 18;
           }
-          if (a.id === 'body_slam' || a.id === 'rex_roar') {
+          if (a.id === 'body_slam' || a.id === 'rex_roar' || a.id === 'raptor_surround' || a.id === 'terror_dive') {
             const already = plState.statusEffects.some(e => e.type === 'stunned');
             s += already ? -40 : 45;
-            // Anti-chain-stun: heavily penalise re-stunning after the player was JUST stunned
-            // (covers the auto-skip cycle where stun wears off before AI's next pick)
             const recentLog = state.log.slice(-5).join('|').toLowerCase();
             if (recentLog.includes('stunned') || recentLog.includes('loses their next')) s -= 180;
           }
+          if (a.id === 'jugular_slash') {
+            const already = plState.statusEffects.some(e => e.type === 'bleeding');
+            s += already ? -20 : 42;
+          }
 
-          // Buff/dodge — prioritise when low HP
           if (a.type === 'buff') {
             const alreadyEvasive = aiState.statusEffects.some(e => e.type === 'evade');
             if (alreadyEvasive) s -= 50;
             else s += aiHpPct < 0.35 ? 55 : (aiHpPct < 0.55 ? 25 : 5);
           }
 
-          // Ultimate — calculated strike, not a panic button
           if (a.isUltimate) {
-            if (a.damage && a.damage >= plState.hp) s += 250; // guaranteed KO
-            else if (plHpPct < 0.45) s += 70;                 // player is vulnerable
-            else if (aiHpPct < 0.22) s += 90;                 // desperate last stand
-            else s -= 70;                                       // strongly hold back — save for the right moment
-            // Never open a fight with the ultimate
+            if (a.damage && a.damage >= plState.hp) s += 250;
+            else if (plHpPct < 0.45) s += 70;
+            else if (aiHpPct < 0.22) s += 90;
+            else s -= 70;
             if (state.turnNumber <= 2) s -= 120;
           }
 
-          // Slight random noise so AI isn't perfectly predictable
           s += (Math.random() - 0.5) * 12;
 
           return s;
@@ -315,7 +319,6 @@ export default function BattleArena() {
           .map(a => ({ a, s: scoreAbility(a) }))
           .sort((x, y) => y.s - x.s);
 
-        // Weighted random among top 3 so AI isn't always perfectly optimal
         const topN    = Math.min(3, scored.length);
         const weights = [0.70, 0.22, 0.08].slice(0, topN);
         let r = Math.random() * weights.reduce((a, b) => a + b, 0);
@@ -331,7 +334,6 @@ export default function BattleArena() {
     }, GAME_TIMING.AI_TURN_DELAY);
   };
 
-  // Keep ref pointing at the latest triggerAI so effects can call it without stale closures
   triggerAICallbackRef.current = triggerAI;
 
   const handleAction = (abilityId: string) => {
@@ -361,13 +363,11 @@ export default function BattleArena() {
   const isPlayerStunned = state.player.statusEffects.some(e => e.type === 'stunned');
   const playerBlocked   = !!state.winner || isPlayerStunned;
 
-  // Build framer-motion animate object from keyframes
   const buildAnimate = (anim: AnimState, side: 'player' | 'opponent') => {
     if (!anim.playing) {
       return { x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 };
     }
     const kf = anim.config.keyframes;
-    // Flip x direction for player (moves right) vs opponent (moves left)
     const xDir = side === 'player' ? 1 : -1;
     return {
       x: kf.x ? kf.x.map((v: number) => v * xDir) : [0, 0],
@@ -394,17 +394,18 @@ export default function BattleArena() {
     ? 'dino-ult-opponent'
     : '';
 
-  // HP-ratio for visual effects
   const playerHpPct   = state.player.hp   / playerBase.maxHp;
   const opponentHpPct = state.opponent.hp / opponentBase.maxHp;
 
-  // Final CSS class: hit/ult animations take priority; else breathe or critical pulse
   const playerVisualCls = state.player.hp <= 0   ? '' : playerCss   || (playerHpPct   < 0.25 ? 'dino-critical' : 'dino-breathe');
   const oppVisualCls    = state.opponent.hp <= 0  ? '' : opponentCss || (opponentHpPct < 0.25 ? 'dino-critical' : 'dino-breathe');
 
-  // Drop-shadow for healthy dinos; greyscale when fainted
   const playerFilter   = state.player.hp   <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(3px 8px 14px rgba(0,0,0,0.6))';
   const opponentFilter = state.opponent.hp  <= 0 ? 'grayscale(0.6) brightness(0.6)' : 'drop-shadow(3px 8px 14px rgba(0,0,0,0.6))';
+
+  const playerCombo = state.playerCombo ?? 0;
+  const playerIsDesperate = playerHpPct < 0.22 && state.player.hp > 0;
+  const opponentIsDesperate = opponentHpPct < 0.22 && state.opponent.hp > 0;
 
   return (
     <div className="flex-1 flex flex-col" style={{ minHeight: '100vh', background: '#c8d8e8', userSelect: 'none' }}>
@@ -425,6 +426,43 @@ export default function BattleArena() {
             onComplete={() => setActiveMoveEffect(null)}
           />
         )}
+
+        {/* ── Critical Hit Flash ── */}
+        <AnimatePresence>
+          {showCritFlash && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.55, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 z-45 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(255,220,0,0.6) 0%, rgba(255,120,0,0.3) 50%, transparent 80%)' }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* ── CRITICAL HIT popup ── */}
+        <AnimatePresence>
+          {showCritFlash && (
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, y: 20 }}
+              animate={{ scale: 1.1, opacity: 1, y: 0 }}
+              exit={{ scale: 1.3, opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="absolute z-50 inset-x-0 flex items-center justify-center pointer-events-none"
+              style={{ top: '42%' }}
+            >
+              <div style={{
+                fontWeight: 900, fontSize: 26, letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: '#ffdd00',
+                textShadow: '0 0 24px rgba(255,200,0,1), 3px 3px 0 rgba(0,0,0,0.7)',
+                WebkitTextStroke: '1px rgba(0,0,0,0.5)',
+              }}>
+                ⚡ CRITICAL HIT! ⚡
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Ultimate screen flash ── */}
         <AnimatePresence>
@@ -494,6 +532,11 @@ export default function BattleArena() {
                   HIDE {state.player.biteProgress}/{pRequiredBites}
                 </span>
               )}
+              {opponentIsDesperate && (
+                <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#ffe0e0', color: '#cc0000', border: '1px solid #ff8888', animation: 'pulse 0.8s infinite' }}>
+                  🔥 FURY
+                </span>
+              )}
               {state.opponent.statusEffects.map((e, i) => (
                 <StatusBadge key={i} type={e.type} duration={e.duration} />
               ))}
@@ -530,13 +573,11 @@ export default function BattleArena() {
             damping: opponentAnim.playing ? undefined : 20,
           }}
         >
-          {/* Roar rings */}
           {showRoar?.side === 'opponent' && (
             <div className="absolute" style={{ top: '20%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 30 }}>
               <div className="roar-ring" /><div className="roar-ring roar-ring-2" /><div className="roar-ring roar-ring-3" />
             </div>
           )}
-          {/* Lightning */}
           {showLightning?.side === 'opponent' && (
             <div className="absolute" style={{ top: '10%', left: '40%', zIndex: 30 }}>
               <div className="lightning" /><div className="lightning lightning-2" /><div className="lightning lightning-3" />
@@ -568,13 +609,11 @@ export default function BattleArena() {
             damping: playerAnim.playing ? undefined : 20,
           }}
         >
-          {/* Roar rings */}
           {showRoar?.side === 'player' && (
             <div className="absolute" style={{ top: '20%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 30 }}>
               <div className="roar-ring" /><div className="roar-ring roar-ring-2" /><div className="roar-ring roar-ring-3" />
             </div>
           )}
-          {/* Lightning */}
           {showLightning?.side === 'player' && (
             <div className="absolute" style={{ top: '10%', left: '40%', zIndex: 30 }}>
               <div className="lightning" /><div className="lightning lightning-2" /><div className="lightning lightning-3" />
@@ -636,6 +675,16 @@ export default function BattleArena() {
                 <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#fff8e0', color: '#886600', border: '1px solid #ddc050' }}
                   title={`Thick hide! ${oRequiredBites} bites needed to penetrate`}>
                   HIDE {state.opponent.biteProgress}/{oRequiredBites}
+                </span>
+              )}
+              {playerCombo >= 2 && (
+                <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#fff0e0', color: '#cc5500', border: '1px solid #ffaa66' }}>
+                  🔗 x{playerCombo}
+                </span>
+              )}
+              {playerIsDesperate && (
+                <span className="text-[9px] px-1 rounded font-bold" style={{ background: '#ffe0e0', color: '#cc0000', border: '1px solid #ff8888' }}>
+                  🔥 FURY
                 </span>
               )}
               {state.player.statusEffects.map((e, i) => (
@@ -778,6 +827,15 @@ export default function BattleArena() {
                         PWR {a.damage}{a.isUltimate ? '!' : ''}
                       </span>
                     )}
+                    {a.id === 'raptor_surround' && !disabled && (
+                      <span className="text-[9px] mt-0.5" style={{ color: '#9933cc', fontWeight: 700 }}>STUN</span>
+                    )}
+                    {a.id === 'jugular_slash' && !disabled && (
+                      <span className="text-[9px] mt-0.5" style={{ color: '#cc0000', fontWeight: 700 }}>🩸 BLEED</span>
+                    )}
+                    {a.id === 'terror_dive' && !disabled && (
+                      <span className="text-[9px] mt-0.5" style={{ color: '#9933cc', fontWeight: 700 }}>STUN</span>
+                    )}
                     {alreadyUsed && (
                       <span className="text-[9px]" style={{ color: '#999', fontStyle: 'italic' }}>Used</span>
                     )}
@@ -785,7 +843,9 @@ export default function BattleArena() {
                 );
               })}
             </div>
-            <div className="flex flex-col" style={{ width: 90 }}>
+
+            {/* Rest + Combo info */}
+            <div className="flex flex-col gap-2" style={{ width: 90 }}>
               <button
                 disabled={playerBlocked}
                 onClick={handleRest}
@@ -794,7 +854,20 @@ export default function BattleArena() {
               >
                 <span className="font-black text-xs uppercase" style={{ color: '#444' }}>Rest</span>
                 <span className="text-[9px] mt-0.5" style={{ color: '#777' }}>+25 ST</span>
+                {playerCombo >= 2 && (
+                  <span className="text-[8px] mt-1" style={{ color: '#cc5500' }}>resets combo</span>
+                )}
               </button>
+
+              {/* Combo streak display */}
+              {playerCombo >= 2 && (
+                <div className="rounded flex flex-col items-center justify-center py-1"
+                  style={{ background: 'linear-gradient(135deg, #fff4e0, #ffe0b0)', border: '2px solid #dd8800', boxShadow: '1px 1px 0 #aa6600' }}>
+                  <span className="text-[9px] font-black uppercase" style={{ color: '#885500' }}>COMBO</span>
+                  <span className="font-black" style={{ color: '#cc4400', fontSize: 18, lineHeight: 1 }}>×{playerCombo}</span>
+                  <span className="text-[8px]" style={{ color: '#aa6600' }}>+{Math.min(playerCombo - 1, 3) * 10}% DMG</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -851,18 +924,20 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
   evade:       { bg: '#e0ffe0', text: '#228822', border: '#88dd88' },
   blinded:     { bg: '#e8e0f8', text: '#662299', border: '#cc99ee' },
   slowed:      { bg: '#e0f0ff', text: '#226699', border: '#88bbee' },
+  bleeding:    { bg: '#ffe8e8', text: '#aa0000', border: '#ff6666' },
 };
 
 function StatusBadge({ type, duration }: { type: string; duration: number }) {
   const tooltip = STATUS_TOOLTIPS[type] ?? type;
   const colors  = STATUS_COLORS[type] ?? { bg: '#ffe0e0', text: '#cc2222', border: '#ffaaaa' };
+  const label   = type === 'bleeding' ? '🩸 BLEED' : type.toUpperCase();
   return (
     <span
       className="text-[9px] px-1 rounded font-bold cursor-help"
       style={{ background: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
       title={`${tooltip} (${duration} turn${duration !== 1 ? 's' : ''} remaining)`}
     >
-      {type.toUpperCase()}
+      {label}
     </span>
   );
 }
