@@ -6,8 +6,7 @@ import { DinoSvg } from '@/components/dino-svg';
 import { MoveEffect } from '@/components/move-effects';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GAME_TIMING, getAdjustedDuration } from '@/lib/game-timing';
-import arenaBg from '../assets/arena-bg.png';
-import forestBg from '../assets/forest-bg.png';
+import { ArenaBackground3D } from '@/components/arena-background-3d';
 
 type AnimTarget = 'self' | 'opponent';
 interface AnimConfig {
@@ -395,28 +394,7 @@ export default function BattleArena() {
 
       {/* ── BATTLE FIELD ── */}
       <div className={`relative overflow-hidden flex-shrink-0 ${arenaShake ? 'arena-shake' : ''}`} style={{ height: '52vh' }}>
-        {state.gameMode === '1v1' && (
-          <img src={arenaBg} alt="arena" className="absolute inset-0 w-full h-full object-cover object-center" draggable={false} />
-        )}
-        {state.gameMode === 'hunt' && (
-          <img src={forestBg} alt="forest" className="absolute inset-0 w-full h-full object-cover object-center" draggable={false} />
-        )}
-        {state.gameMode === 'team' && (
-          <div className="absolute inset-0" style={{
-            background: 'linear-gradient(180deg, #0a0304 0%, #2a0808 25%, #4a1010 55%, #1a0a04 80%, #0d0404 100%)',
-          }}>
-            <div className="absolute bottom-0 left-0 right-0" style={{ height: '35%', background: 'linear-gradient(180deg, transparent 0%, #1a0808 100%)' }}/>
-            {[15,35,55,75,90].map((x,i) => (
-              <div key={i} className="absolute bottom-0" style={{
-                left: `${x}%`, width: 3, height: `${20 + i * 8}%`,
-                background: `linear-gradient(180deg, #cc4400 0%, #ff6600 40%, #ffaa00 100%)`,
-                opacity: 0.7, filter: 'blur(1px)',
-                animation: `none`,
-              }}/>
-            ))}
-            <div className="absolute bottom-0 left-0 right-0" style={{ height: '18%', background: 'linear-gradient(180deg, transparent, rgba(255,80,0,0.25))' }}/>
-          </div>
-        )}
+        <ArenaBackground3D mode={state.gameMode as '1v1' | 'team' | 'hunt'} />
         <div className="absolute inset-0" style={{
           background: state.gameMode === 'team'
             ? 'linear-gradient(180deg, rgba(30,5,5,0.6) 0%, transparent 35%, rgba(60,15,5,0.7) 85%)'
