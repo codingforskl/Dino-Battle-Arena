@@ -2,11 +2,12 @@ import { useContext, useState } from 'react';
 import { GameContext } from '@/App';
 import { DINOSAURS, DinoId } from '@/lib/dino-data';
 import { DinoSvg } from '@/components/dino-svg';
+import { HunterSvg } from '@/components/hunter-svg';
 import forestBg from '../assets/forest-bg.png';
 
-const DINO_IDS = Object.keys(DINOSAURS) as DinoId[];
+const DINO_IDS = (Object.keys(DINOSAURS) as DinoId[]).filter(id => id !== 'hunter');
 
-const DINO_SHORT: Record<DinoId, string> = {
+const DINO_SHORT: Partial<Record<DinoId, string>> = {
   velociraptor: 'VELOC',
   giganotosaurus: 'GIGAN',
   spinosaurus: 'SPINO',
@@ -30,7 +31,7 @@ export default function SelectScreen() {
     if (mode === '1v1') {
       ctx.dispatch({ type: 'START_BATTLE', playerDino: selectedPlayer, opponentDino: selectedOpponent });
     } else if (mode === 'hunt') {
-      ctx.dispatch({ type: 'START_HUNT', playerDino: selectedPlayer });
+      ctx.dispatch({ type: 'START_EXPLORE' });
     } else {
       const shuffled = [...DINO_IDS].sort(() => Math.random() - 0.5);
       const opponentTeam = shuffled.slice(0, 3);
@@ -87,18 +88,6 @@ export default function SelectScreen() {
           {modeBtn('hunt', 'Wild Hunt',     '🌿',  '#228833', '#115522')}
         </div>
 
-        {/* Wild Hunt info banner */}
-        {mode === 'hunt' && (
-          <div className="rounded-xl mb-4 p-3" style={{ background: 'linear-gradient(135deg, #e8f8e8, #c8ecc8)', border: '2px solid #44aa55' }}>
-            <p className="font-black text-sm uppercase mb-1" style={{ color: '#115522' }}>🌿 Wild Hunt Rules</p>
-            <p className="text-xs" style={{ color: '#226633', lineHeight: 1.5 }}>
-              Battle wild dinosaurs one by one. Weaken them to below <strong>30% HP</strong> and a <strong>🪤 THROW NET</strong> button appears.
-              Capture them for points! If your net misses, the wild dino goes <strong>ENRAGED</strong>.
-              Capture all 4 wild dinos to become a Legendary Hunter!
-            </p>
-          </div>
-        )}
-
         {mode === '1v1' ? (
           <div className="grid grid-cols-2 gap-4 mb-4">
             <DinoCard
@@ -124,36 +113,37 @@ export default function SelectScreen() {
           </div>
         ) : mode === 'hunt' ? (
           <div className="mb-4">
-            <p className="font-black text-xs uppercase tracking-widest mb-2" style={{ color: '#228833' }}>
-              Choose Your Hunter
-            </p>
-            <div className="grid grid-cols-1 gap-3">
-              <DinoCard
-                label="Your Hunter"
-                accentColor="#228833"
-                shadowColor="#115522"
-                dinos={DINO_IDS}
-                selected={selectedPlayer}
-                onSelect={setSelectedPlayer}
-                flipped={false}
-                dino={playerDino}
-              />
-            </div>
-            <div className="mt-3 rounded-xl p-3" style={{ background: 'linear-gradient(135deg, #fff0e8, #ffe0cc)', border: '2px solid #cc8800' }}>
-              <p className="font-black text-xs uppercase tracking-widest mb-1" style={{ color: '#884400' }}>
-                Wild Dinos to Hunt
-              </p>
-              <p className="text-[10px] mb-2" style={{ color: '#775500' }}>
-                You will face 4 random wild dinosaurs in sequence!
-              </p>
-              <div className="flex gap-2">
-                {[0, 1, 2, 3].map(i => (
-                  <div key={i} className="flex-1 flex items-center justify-center rounded-lg font-black text-2xl"
-                    style={{ height: 44, background: '#cc8800', border: '2px solid #886600', color: 'rgba(255,255,255,0.8)' }}>
-                    ?
+            {/* Hunter character card */}
+            <div className="rounded-xl p-4 mb-3" style={{ background: 'linear-gradient(135deg, #e8f8e8, #c8ecc8)', border: '2px solid #44aa55' }}>
+              <p className="font-black text-xs uppercase tracking-widest mb-2" style={{ color: '#115522' }}>🌿 Your Character</p>
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 flex items-center justify-center rounded-xl"
+                  style={{ width: 96, height: 120, background: 'linear-gradient(180deg, #c8ddf0 0%, #a8c4e0 100%)', border: '2px solid #88bbdd' }}>
+                  <HunterSvg style={{ height: 104, width: 'auto' }} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-black text-base uppercase" style={{ color: '#115522', letterSpacing: '0.06em' }}>The Hunter</p>
+                  <p className="text-[10px] mb-2" style={{ color: '#337744' }}>Expert tracker with tranq darts, snare nets & field traps</p>
+                  <div className="space-y-1">
+                    <StatRow label="HP" value={DINOSAURS.hunter.maxHp} color="#cc3322" />
+                    <StatRow label="Speed" value={DINOSAURS.hunter.baseSpeed} color="#2266cc" />
+                    <StatRow label="Stamina" value={DINOSAURS.hunter.maxStamina} color="#228844" />
                   </div>
-                ))}
+                  <div className="mt-2 p-2 rounded" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid #88cc88' }}>
+                    <p className="font-black text-[9px] uppercase" style={{ color: '#884400' }}>⚡ HUNTER'S GAMBIT (Ultimate)</p>
+                    <p className="text-[8px]" style={{ color: '#337744' }}>Full weapon assault — massive damage</p>
+                  </div>
+                </div>
               </div>
+            </div>
+            {/* Open world info */}
+            <div className="rounded-xl p-3" style={{ background: 'linear-gradient(135deg, #fff0e8, #ffe0cc)', border: '2px solid #cc8800' }}>
+              <p className="font-black text-xs uppercase tracking-widest mb-1" style={{ color: '#884400' }}>🗺️ Open World Exploration</p>
+              <p className="text-[10px]" style={{ color: '#775500', lineHeight: 1.5 }}>
+                Explore a living wilderness map to <strong>find all 5 dinosaurs hiding in their territories</strong>.
+                Move with <strong>WASD or arrow keys</strong>. When close enough, engage them in battle!
+                Weaken to <strong>&lt;30% HP</strong>, then throw your net to capture.
+              </p>
             </div>
           </div>
         ) : (
@@ -184,7 +174,7 @@ export default function SelectScreen() {
                           background: dinoId === id ? '#2266cc' : 'white',
                           color: dinoId === id ? 'white' : '#888', cursor: 'pointer',
                         }}>
-                        {DINO_SHORT[id]}
+                        {DINO_SHORT[id] ?? id.slice(0,5).toUpperCase()}
                       </button>
                     ))}
                   </div>

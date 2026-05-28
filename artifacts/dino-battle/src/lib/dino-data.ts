@@ -1,4 +1,4 @@
-export type DinoId = 'velociraptor' | 'giganotosaurus' | 'spinosaurus' | 'trex' | 'pterodactylus';
+export type DinoId = 'velociraptor' | 'giganotosaurus' | 'spinosaurus' | 'trex' | 'pterodactylus' | 'hunter';
 
 export type AbilityId = string;
 
@@ -37,6 +37,24 @@ export const STATUS_TOOLTIPS: Record<string, string> = {
 };
 
 export const DINOSAURS: Record<DinoId, DinoBase> = {
+  hunter: {
+    id: 'hunter',
+    name: 'Hunter',
+    height: 1.8,
+    maxHp: 160,
+    baseSpeed: 72,
+    maxStamina: 120,
+    biteForce: 0,
+    hideToughness: 'low',
+    abilities: [
+      { id: 'tail_sweep_giga', name: 'Snare Net',      description: 'Hurls a weighted net — tangles legs and slows the dinosaur',               shortEffect: 'Slows dinosaur 2 turns',           staminaCost: 12, type: 'attack', damage: 22 },
+      { id: 'pack_feint',     name: 'Smoke Screen',   description: 'Deploys a smoke canister — dodge the next incoming attack',                 shortEffect: 'Grants 55% dodge chance',          staminaCost: 14, type: 'buff' },
+      { id: 'body_slam',      name: 'Bear Trap',      description: 'Spring-loaded jaw trap snaps shut — stuns the dinosaur 1 turn',             shortEffect: 'Stuns dinosaur 1 turn',            staminaCost: 18, type: 'attack', damage: 18 },
+      { id: 'jugular_slash',  name: 'Poison Dart',    description: 'Fires a neurotoxin dart — causes ongoing bleeding damage',                  shortEffect: '🩸 Causes bleeding (3 turns)',      staminaCost: 16, type: 'attack', damage: 14 },
+      { id: 'rex_bite',       name: 'Tranq Rifle',    description: 'High-powered tranquilizer blast — powerful stagger',                        shortEffect: 'Powerful heavy hit',               staminaCost: 22, type: 'attack', damage: 44 },
+      { id: 'frenzy_blitz',   name: "HUNTER'S GAMBIT",description: 'Unleashes every weapon at once — explosive full assault',                   shortEffect: 'Full hunter arsenal assault',      staminaCost: 46, type: 'attack', damage: 68, isUltimate: true },
+    ]
+  },
   velociraptor: {
     id: 'velociraptor',
     name: 'Velociraptor Pack',

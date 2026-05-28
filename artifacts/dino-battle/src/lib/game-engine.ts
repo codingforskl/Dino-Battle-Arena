@@ -16,7 +16,7 @@ export interface GameState {
   turnNumber: number;
   log: string[];
   winner: 'player' | 'opponent' | null;
-  phase: 'select' | 'battle' | 'victory';
+  phase: 'select' | 'explore' | 'battle' | 'victory';
   lastAttackerWasPlayer: boolean;
   gameMode: '1v1' | 'team' | 'hunt';
   playerTeam: CombatantState[];
@@ -25,18 +25,19 @@ export interface GameState {
   playerCombo: number;
   opponentCombo: number;
   lastCrit: boolean;
-  // Strict turn order
   activeTurn: 'player' | 'opponent';
   roundStarter: 'player' | 'opponent';
-  // Wild Hunt
   capturedDinos: DinoId[];
   huntRemainingWild: DinoId[];
+  huntFledDinos: DinoId[];
 }
 
 export type GameAction =
   | { type: 'START_BATTLE'; playerDino: DinoId; opponentDino: DinoId }
   | { type: 'START_TEAM_BATTLE'; playerTeam: DinoId[]; opponentTeam: DinoId[] }
-  | { type: 'START_HUNT'; playerDino: DinoId }
+  | { type: 'START_EXPLORE' }
+  | { type: 'ENCOUNTER_DINO'; wildDinoId: DinoId }
+  | { type: 'RETURN_TO_EXPLORE' }
   | { type: 'SWITCH_TEAM_MEMBER'; attacker: 'player' | 'opponent'; nextDinoId: DinoId }
   | { type: 'USE_ABILITY'; abilityId: string; attacker: 'player' | 'opponent' }
   | { type: 'REST'; attacker: 'player' | 'opponent' }
@@ -84,6 +85,8 @@ function applyBleedingAtTurnStart(
   return { ...combatant, hp: newHp };
 }
 
+const ALL_WILD: DinoId[] = ['velociraptor', 'giganotosaurus', 'spinosaurus', 'trex', 'pterodactylus'];
+
 const EMPTY_STATE: GameState = {
   player: null,
   opponent: null,
@@ -103,6 +106,7 @@ const EMPTY_STATE: GameState = {
   roundStarter: 'player',
   capturedDinos: [],
   huntRemainingWild: [],
+  huntFledDinos: [],
 };
 
 export const INITIAL_GAME_STATE: GameState = EMPTY_STATE;
@@ -151,28 +155,59 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case 'START_HUNT': {
-      const allDinos = Object.keys(DINOSAURS) as DinoId[];
-      const wildPool = allDinos.filter(id => id !== action.playerDino);
-      const shuffled = [...wildPool].sort(() => Math.random() - 0.5);
-      const firstWild = shuffled[0];
-      const remaining = shuffled.slice(1);
-      const activeTurn = calcTurnOrder(action.playerDino, firstWild);
+    case 'START_EXPLORE': {
+      const shuffled = [...ALL_WILD].sort(() => Math.random() - 0.5);
       return {
         ...EMPTY_STATE,
-        player: initializeCombatant(action.playerDino, true),
-        opponent: initializeCombatant(firstWild, false),
+        phase: 'explore',
+        gameMode: 'hunt',
+        huntRemainingWild: shuffled,
+        capturedDinos: [],
+        huntFledDinos: [],
+      };
+    }
+
+    case 'ENCOUNTER_DINO': {
+      const activeTurn = calcTurnOrder('hunter', action.wildDinoId);
+      return {
+        ...state,
+        player: initializeCombatant('hunter', true),
+        opponent: initializeCombatant(action.wildDinoId, false),
+        huntRemainingWild: state.huntRemainingWild.filter(id => id !== action.wildDinoId),
         turnNumber: 1,
         log: [
-          `🌿 WILD HUNT BEGINS! A wild ${DINOSAURS[firstWild].name} appears!`,
-          activeTurn === 'player' ? `⚡ YOU go first!` : `⚡ Wild ${DINOSAURS[firstWild].name} strikes first!`,
+          `🌿 Wild ${DINOSAURS[action.wildDinoId].name} emerges from the wild!`,
+          activeTurn === 'player' ? `⚡ Hunter moves first!` : `⚡ Wild ${DINOSAURS[action.wildDinoId].name} strikes first!`,
         ],
         phase: 'battle',
         gameMode: 'hunt',
+        winner: null,
         activeTurn,
         roundStarter: activeTurn,
-        capturedDinos: [],
-        huntRemainingWild: remaining,
+        playerCombo: 0,
+        opponentCombo: 0,
+        lastCrit: false,
+      };
+    }
+
+    case 'RETURN_TO_EXPLORE': {
+      // Re-add the current opponent back to the wild (they won, they escaped)
+      const readdQueue = state.opponent
+        ? [state.opponent.dinoId, ...state.huntRemainingWild]
+        : state.huntRemainingWild;
+      return {
+        ...state,
+        player: null,
+        opponent: null,
+        phase: 'explore',
+        winner: null,
+        turnNumber: 0,
+        log: [],
+        playerCombo: 0,
+        opponentCombo: 0,
+        lastCrit: false,
+        activeTurn: 'player',
+        huntRemainingWild: readdQueue,
       };
     }
 
@@ -184,12 +219,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const freshMember = initializeCombatant(action.nextDinoId, isPlayer);
       const newBench = bench.filter(m => m.dinoId !== action.nextDinoId);
       const base = DINOSAURS[action.nextDinoId];
-
-      // Recalculate turn order after switch
       const playerDinoId = isPlayer ? action.nextDinoId : state.player!.dinoId;
       const oppDinoId = !isPlayer ? action.nextDinoId : state.opponent!.dinoId;
       const activeTurn = calcTurnOrder(playerDinoId, oppDinoId);
-
       return {
         ...state,
         player: isPlayer ? freshMember : state.player,
@@ -206,13 +238,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'CAPTURE_ATTEMPT': {
       if (!state.player || !state.opponent) return state;
       const wildBase = DINOSAURS[state.opponent.dinoId];
+      const capturedId = state.opponent.dinoId;
 
       if (action.success) {
-        const capturedId = state.opponent.dinoId;
         const newCaptured = [...state.capturedDinos, capturedId];
-        const newQueue = [...state.huntRemainingWild];
-
-        if (newQueue.length === 0) {
+        const newQueue = state.huntRemainingWild;
+        const allDone = newCaptured.length + state.huntFledDinos.length >= ALL_WILD.length;
+        if (allDone || newQueue.length === 0) {
           return {
             ...state,
             capturedDinos: newCaptured,
@@ -222,29 +254,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             log: [...state.log, `🎉 ${wildBase.name} captured! You caught ALL dinosaurs — LEGENDARY HUNTER!`],
           };
         }
-
-        const nextWild = newQueue.shift()!;
-        const nextOpponent = initializeCombatant(nextWild, false);
-        const activeTurn = calcTurnOrder(state.player.dinoId, nextWild);
         return {
           ...state,
-          opponent: nextOpponent,
           capturedDinos: newCaptured,
-          huntRemainingWild: newQueue,
-          activeTurn,
-          roundStarter: activeTurn,
-          lastCrit: false,
+          phase: 'explore',
+          player: null,
+          opponent: null,
+          winner: null,
           playerCombo: 0,
           opponentCombo: 0,
-          log: [
-            ...state.log,
-            `🎉 ${wildBase.name} captured! (${newCaptured.length} caught)`,
-            `🌿 A wild ${DINOSAURS[nextWild].name} appears!`,
-            activeTurn === 'player' ? `⚡ YOU go first!` : `⚡ Wild ${DINOSAURS[nextWild].name} strikes first!`,
-          ],
+          lastCrit: false,
+          log: [...state.log, `🎉 ${wildBase.name} captured! Return to the world to find the next one!`],
         };
       } else {
-        // Capture failed — wild dino enrages
         const enragedOpponent = {
           ...state.opponent,
           statusEffects: [
@@ -275,7 +297,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       let newLog = [...state.log];
 
-      // ── Bleeding at turn start ───────────────────────────────────────
       attackerState = applyBleedingAtTurnStart(attackerState, newLog, attackerBase.name);
       if (attackerState.hp === 0) {
         newLog.push(`${attackerBase.name} bled out before they could act!`);
@@ -295,25 +316,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       if (ability.isUltimate) attackerState.ultimateUsed = true;
 
-      // ── Intimidated debuff ──────────────────────────────────────────
       if (attackerState.statusEffects.some(e => e.type === 'intimidated') && damage > 0) {
         damage = Math.floor(damage * 0.65);
         newLog.push(`${attackerBase.name} is intimidated — attack weakened!`);
       }
 
-      // ── Desperate Fury ──────────────────────────────────────────────
       const hpPct = attackerState.hp / attackerBase.maxHp;
       if (hpPct < 0.22 && damage > 0) {
         damage = Math.floor(damage * 1.25);
         newLog.push(`🔥 DESPERATE FURY! +25% damage!`);
       }
 
-      // ── Enraged (wild hunt) ─────────────────────────────────────────
       if (attackerState.statusEffects.some(e => e.type === 'enraged') && damage > 0) {
         damage = Math.floor(damage * 1.25);
       }
 
-      // ── Bite / hide penetration ─────────────────────────────────────
       const isBite = ability.name.toLowerCase().includes('bite') || ability.id.includes('bite');
       if (isBite && !ability.isUltimate) {
         const requiredBites = getRequiredBites(attackerState.dinoId, defenderState.dinoId);
@@ -329,20 +346,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // ── Death Roll bonus ────────────────────────────────────────────
       if (ability.id === 'death_roll') {
         const bonusDmg = Math.floor(defenderBase.maxHp * 0.12);
         damage += bonusDmg;
         newLog.push(`Death roll tears through armor! +${bonusDmg} bonus!`);
       }
 
-      // ── Ambush bonus ────────────────────────────────────────────────
       if (ability.id === 'ambush_strike' && !state.lastAttackerWasPlayer) {
         damage += 12;
         newLog.push(`Ambush! +12 bonus damage!`);
       }
 
-      // ── Speed damage bonus ──────────────────────────────────────────
       if (damage > 0 && ability.type === 'attack') {
         const atkSpd = attackerState.statusEffects.some(e => e.type === 'slowed')
           ? Math.floor(attackerBase.baseSpeed / 2) : attackerBase.baseSpeed;
@@ -360,7 +374,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // ── Combo streak ────────────────────────────────────────────────
       const currentCombo = isPlayerAttacking ? state.playerCombo : state.opponentCombo;
       const newCombo = currentCombo + 1;
       if (newCombo >= 2 && damage > 0) {
@@ -370,7 +383,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newLog.push(`🔗 Combo ×${newCombo}! +${Math.round(pct * 100)}% (+${bonusDmg})`);
       }
 
-      // ── Critical hit ────────────────────────────────────────────────
       if (damage > 0 && !ability.isUltimate && Math.random() < 0.15) {
         const critBonus = Math.floor(damage * 0.5);
         damage += critBonus;
@@ -378,7 +390,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newLog.push(`⚡ CRITICAL HIT! +${critBonus} bonus!`);
       }
 
-      // ── Ability status effects ───────────────────────────────────────
       if (ability.id === 'pack_feint') {
         attackerState.statusEffects.push({ type: 'evade', duration: 1 });
         newLog.push(`${attackerBase.name} braced to dodge!`);
@@ -420,14 +431,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         newLog.push(`${defenderBase.name} BLINDED — 40% miss chance!`);
       }
 
-      // ── Blinded miss ────────────────────────────────────────────────
       if (attackerState.statusEffects.some(e => e.type === 'blinded') && ability.type === 'attack' && Math.random() < 0.4) {
         damage = 0;
         isCrit = false;
         newLog.push(`${attackerBase.name} is blinded and missed!`);
       }
 
-      // ── Evade dodge ─────────────────────────────────────────────────
       const hasEvade = defenderState.statusEffects.find(e => e.type === 'evade');
       if (hasEvade && ability.type === 'attack') {
         const evadeChance = defenderState.dinoId === 'pterodactylus' ? 0.6 : 0.5;
@@ -454,22 +463,36 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       defenderState.hp = newDefenderHp;
       attackerState.stamina = newAttackerStamina;
 
-      // Flip active turn
       const newActiveTurn: 'player' | 'opponent' = isPlayerAttacking ? 'opponent' : 'player';
       const newPlayerCombo = isPlayerAttacking ? newCombo : 0;
       const newOpponentCombo = !isPlayerAttacking ? newCombo : 0;
 
       let winner: 'player' | 'opponent' | null = state.winner;
       let awaitingSwitch: 'player' | 'opponent' | null = state.awaitingSwitch;
+      let huntFledOut: DinoId[] = state.huntFledDinos;
+      let nextPhase: GameState['phase'] | null = null;
 
       if (newDefenderHp === 0) {
         newLog.push(`${defenderBase.name} was defeated!`);
         if (state.gameMode === '1v1') {
           winner = isPlayerAttacking ? 'player' : 'opponent';
         } else if (state.gameMode === 'hunt') {
-          // In hunt, opponent KO means player wins this encounter but hasn't captured
-          winner = isPlayerAttacking ? 'player' : 'opponent';
-          if (isPlayerAttacking) newLog.push(`Wild ${defenderBase.name} fled before you could capture it!`);
+          if (isPlayerAttacking) {
+            // Wild dino fled — auto-return to explore world
+            newLog.push(`Wild ${defenderBase.name} fled into the wilderness — couldn't capture it!`);
+            huntFledOut = [...state.huntFledDinos, defenderState.dinoId];
+            const allDone = state.capturedDinos.length + huntFledOut.length >= ALL_WILD.length;
+            if (allDone) {
+              winner = 'player';
+              nextPhase = 'victory';
+            } else {
+              winner = null;
+              nextPhase = 'explore';
+            }
+          } else {
+            winner = 'opponent';
+            newLog.push(`The dinosaur overpowered you! Return to the world to recover.`);
+          }
         } else {
           const remainingBench = isPlayerAttacking ? state.opponentTeam : state.playerTeam;
           if (remainingBench.length === 0) {
@@ -491,13 +514,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         log: newLog,
         turnNumber: state.turnNumber + (isPlayerAttacking ? 0 : 1),
         winner,
-        phase: winner ? 'victory' : state.phase,
+        phase: nextPhase ?? (winner ? 'victory' : state.phase),
         lastAttackerWasPlayer: isPlayerAttacking,
         awaitingSwitch,
         playerCombo: newPlayerCombo,
         opponentCombo: newOpponentCombo,
         lastCrit: isCrit,
         activeTurn: winner ? state.activeTurn : newActiveTurn,
+        huntFledDinos: huntFledOut,
       };
     }
 

@@ -1,11 +1,12 @@
 import { DinoId } from '../lib/dino-data';
+import { HunterSvg } from './hunter-svg';
 import velociraptor from '../assets/velociraptor.png';
 import giganotosaurus from '../assets/giganotosaurus.png';
 import spinosaurus from '../assets/spinosaurus.png';
 import trex from '../assets/trex.png';
 import pterodactylus from '../assets/pterodactylus.png';
 
-const DINO_IMAGES: Record<DinoId, string> = {
+const DINO_IMAGES: Partial<Record<DinoId, string>> = {
   velociraptor, giganotosaurus, spinosaurus, trex, pterodactylus,
 };
 
@@ -24,11 +25,16 @@ export function DinoSvg({ dinoId, className, style, flipped }: DinoImgProps) {
     transform: flipT,
   };
 
-  /* ══════════════════════════════════════════════════════════
-     VELOCIRAPTOR PACK — 2 raptors, flex row
-     filter / className both live on the wrapper so CSS
-     hit-flash / breathe animations affect the whole group
-  ══════════════════════════════════════════════════════════ */
+  if (dinoId === 'hunter') {
+    return (
+      <HunterSvg
+        className={className}
+        style={style}
+        flipped={flipped}
+      />
+    );
+  }
+
   if (dinoId === 'velociraptor') {
     const h        = typeof style?.height === 'number' ? style.height : 90;
     const backH    = Math.round(h * 0.70);
@@ -45,7 +51,7 @@ export function DinoSvg({ dinoId, className, style, flipped }: DinoImgProps) {
           gap,
           height: h,
           width: 'auto',
-          transform: undefined,  // flip lives on each img, not wrapper
+          transform: undefined,
           transformOrigin: 'bottom center',
         }}
       >
@@ -57,9 +63,6 @@ export function DinoSvg({ dinoId, className, style, flipped }: DinoImgProps) {
     );
   }
 
-  /* ══════════════════════════════════════════════════════════
-     PTERODACTYL FLOCK — 3 birds at staggered heights
-  ══════════════════════════════════════════════════════════ */
   if (dinoId === 'pterodactylus') {
     const h      = typeof style?.height === 'number' ? style.height : 90;
     const cH     = Math.round(h * 1.15);
@@ -91,10 +94,12 @@ export function DinoSvg({ dinoId, className, style, flipped }: DinoImgProps) {
     );
   }
 
-  /* ── Single-image dinos ── */
+  const imgSrc = DINO_IMAGES[dinoId];
+  if (!imgSrc) return null;
+
   return (
     <img
-      src={DINO_IMAGES[dinoId]}
+      src={imgSrc}
       alt={dinoId}
       className={className}
       style={{

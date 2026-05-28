@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { INITIAL_GAME_STATE, gameReducer } from '@/lib/game-engine';
 import SelectScreen from '@/pages/select-screen';
 import BattleArena from '@/pages/battle-arena';
+import OpenWorld from '@/pages/open-world';
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ function AppContent() {
     <GameContext.Provider value={{ state, dispatch }}>
       <main className="min-h-screen bg-background text-foreground font-sans w-full max-w-4xl mx-auto border-x border-border shadow-2xl overflow-hidden relative flex flex-col">
         {state.phase === 'select' && <SelectScreen />}
+        {state.phase === 'explore' && <OpenWorld />}
         {(state.phase === 'battle' || state.phase === 'victory') && <BattleArena />}
       </main>
     </GameContext.Provider>

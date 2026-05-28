@@ -7,6 +7,7 @@ import { MoveEffect } from '@/components/move-effects';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GAME_TIMING, getAdjustedDuration } from '@/lib/game-timing';
 import arenaBg from '../assets/arena-bg.png';
+import forestBg from '../assets/forest-bg.png';
 
 type AnimTarget = 'self' | 'opponent';
 interface AnimConfig {
@@ -394,8 +395,35 @@ export default function BattleArena() {
 
       {/* ── BATTLE FIELD ── */}
       <div className={`relative overflow-hidden flex-shrink-0 ${arenaShake ? 'arena-shake' : ''}`} style={{ height: '52vh' }}>
-        <img src={arenaBg} alt="arena" className="absolute inset-0 w-full h-full object-cover object-center" draggable={false} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(5,8,20,0.35) 0%, transparent 40%, rgba(15,8,4,0.5) 82%)' }} />
+        {state.gameMode === '1v1' && (
+          <img src={arenaBg} alt="arena" className="absolute inset-0 w-full h-full object-cover object-center" draggable={false} />
+        )}
+        {state.gameMode === 'hunt' && (
+          <img src={forestBg} alt="forest" className="absolute inset-0 w-full h-full object-cover object-center" draggable={false} />
+        )}
+        {state.gameMode === 'team' && (
+          <div className="absolute inset-0" style={{
+            background: 'linear-gradient(180deg, #0a0304 0%, #2a0808 25%, #4a1010 55%, #1a0a04 80%, #0d0404 100%)',
+          }}>
+            <div className="absolute bottom-0 left-0 right-0" style={{ height: '35%', background: 'linear-gradient(180deg, transparent 0%, #1a0808 100%)' }}/>
+            {[15,35,55,75,90].map((x,i) => (
+              <div key={i} className="absolute bottom-0" style={{
+                left: `${x}%`, width: 3, height: `${20 + i * 8}%`,
+                background: `linear-gradient(180deg, #cc4400 0%, #ff6600 40%, #ffaa00 100%)`,
+                opacity: 0.7, filter: 'blur(1px)',
+                animation: `none`,
+              }}/>
+            ))}
+            <div className="absolute bottom-0 left-0 right-0" style={{ height: '18%', background: 'linear-gradient(180deg, transparent, rgba(255,80,0,0.25))' }}/>
+          </div>
+        )}
+        <div className="absolute inset-0" style={{
+          background: state.gameMode === 'team'
+            ? 'linear-gradient(180deg, rgba(30,5,5,0.6) 0%, transparent 35%, rgba(60,15,5,0.7) 85%)'
+            : state.gameMode === 'hunt'
+            ? 'linear-gradient(180deg, rgba(2,15,5,0.5) 0%, transparent 40%, rgba(5,20,2,0.6) 85%)'
+            : 'linear-gradient(180deg, rgba(5,8,20,0.35) 0%, transparent 40%, rgba(15,8,4,0.5) 82%)'
+        }} />
 
         {activeMoveEffect && (
           <MoveEffect abilityId={activeMoveEffect.abilityId} side={activeMoveEffect.side} onComplete={() => setActiveMoveEffect(null)} />
@@ -920,24 +948,34 @@ export default function BattleArena() {
             style={{ background: 'rgba(0,0,0,0.45)' }}>
             <motion.div initial={{ scale: 0.7, y: -20 }} animate={{ scale: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-              className="stat-box px-10 py-6 text-center" style={{ pointerEvents: 'auto' }}>
+              className="stat-box px-10 py-6 text-center" style={{ pointerEvents: 'auto', maxWidth: 340 }}>
               <p className="text-4xl font-black uppercase tracking-widest mb-1"
                 style={{ color: state.winner === 'player' ? '#2266cc' : '#cc2222' }}>
-                {state.winner === 'player' ? '🏆 Victory!' : '💀 Defeated!'}
+                {state.gameMode === 'hunt' && state.winner === 'opponent' ? '💀 Overwhelmed!' : state.winner === 'player' ? '🏆 Victory!' : '💀 Defeated!'}
               </p>
               {state.gameMode === 'hunt' ? (
                 <p className="text-base font-semibold mb-4" style={{ color: '#555' }}>
-                  {state.capturedDinos.length} dinosaur{state.capturedDinos.length !== 1 ? 's' : ''} captured
+                  {state.winner === 'opponent'
+                    ? 'The dinosaur was too powerful — return to the world and try again!'
+                    : `${state.capturedDinos.length} dinosaur${state.capturedDinos.length !== 1 ? 's' : ''} captured`}
                 </p>
               ) : (
                 <p className="text-base font-semibold mb-4" style={{ color: '#555' }}>
                   {state.winner === 'player' ? playerBase.name : opponentBase.name} wins
                 </p>
               )}
-              <button onClick={() => dispatch({ type: 'RESET' })} className="move-btn"
-                style={{ padding: '10px 28px', fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', borderLeft: '4px solid #2266cc' }}>
-                Play Again
-              </button>
+              <div className="flex gap-2 justify-center flex-wrap">
+                {state.gameMode === 'hunt' && state.winner === 'opponent' && (
+                  <button onClick={() => dispatch({ type: 'RETURN_TO_EXPLORE' })} className="move-btn"
+                    style={{ padding: '10px 20px', fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', borderLeft: '4px solid #228833', background: 'linear-gradient(135deg, #e8f8e8, #d0ecd0)' }}>
+                    🌿 Return to World
+                  </button>
+                )}
+                <button onClick={() => dispatch({ type: 'RESET' })} className="move-btn"
+                  style={{ padding: '10px 20px', fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', borderLeft: '4px solid #2266cc' }}>
+                  {state.gameMode === 'hunt' && state.winner === 'opponent' ? 'Give Up' : 'Play Again'}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
