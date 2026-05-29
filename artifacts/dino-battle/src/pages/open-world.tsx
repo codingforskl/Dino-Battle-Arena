@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { GameContext } from '@/App';
 import type { DinoId } from '@/lib/dino-data';
@@ -92,10 +91,12 @@ const FIREFLY_DEFS: FireflyDef[] = (() => {
 })();
 
 // ─── Module-level shared materials (never recreated) ─────────────────────────
-const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#5a3212' });
-const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#7a4820' });
-const MAT_LEAF_D   = new THREE.MeshLambertMaterial({ color: '#1a4a12' });
-const MAT_LEAF_L   = new THREE.MeshLambertMaterial({ color: '#245e1a' });
+const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#5c3414' });
+const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#7e4a22' });
+const MAT_LEAF_D   = new THREE.MeshLambertMaterial({ color: '#1e5a14' });
+const MAT_LEAF_L   = new THREE.MeshLambertMaterial({ color: '#2e7224' });
+const MAT_LEAF_M   = new THREE.MeshLambertMaterial({ color: '#266418' });
+const MAT_FERN     = new THREE.MeshLambertMaterial({ color: '#163c10' });
 const MAT_GROUND   = new THREE.MeshLambertMaterial({ color: '#142810' });
 const MAT_HILL     = new THREE.MeshLambertMaterial({ color: '#09150a' });
 const MAT_FOG      = new THREE.MeshBasicMaterial({ color: '#1a2e1a', transparent: true, opacity: 0.2, depthWrite: false });
@@ -148,12 +149,18 @@ const FLOW_SEG_MATS: THREE.MeshStandardMaterial[] = Array.from({ length: FLOW_N 
 // ─── Tree ─────────────────────────────────────────────────────────────────────
 function Tree({ x, z, h, dark }: TreeDef) {
   const tH = h * 0.42, cS = tH * 0.7;
+  const lMat = dark ? MAT_LEAF_D : MAT_LEAF_L;
   return (
     <group position={[x, 0, z]}>
-      <mesh position={[0, tH/2, 0]} material={dark ? MAT_TRUNK_D : MAT_TRUNK_L}><cylinderGeometry args={[0.18, 0.28, tH, 6]}/></mesh>
-      <mesh position={[0, cS + h*0.22, 0]} material={dark ? MAT_LEAF_D : MAT_LEAF_L}><coneGeometry args={[h*0.28, h*0.46, 8]}/></mesh>
-      <mesh position={[0, cS + h*0.49, 0]} material={dark ? MAT_LEAF_D : MAT_LEAF_L}><coneGeometry args={[h*0.19, h*0.34, 7]}/></mesh>
-      <mesh position={[0, cS + h*0.69, 0]} material={dark ? MAT_LEAF_D : MAT_LEAF_L}><coneGeometry args={[h*0.10, h*0.22, 6]}/></mesh>
+      <mesh position={[0, tH/2, 0]} material={dark ? MAT_TRUNK_D : MAT_TRUNK_L}><cylinderGeometry args={[0.18, 0.3, tH, 7]}/></mesh>
+      {/* Wide base skirt — low, flat, dark like undergrowth shadow */}
+      <mesh position={[0, cS + h*0.02, 0]} material={MAT_FERN}><coneGeometry args={[h*0.46, h*0.18, 10]}/></mesh>
+      {/* Mid skirt */}
+      <mesh position={[0, cS + h*0.16, 0]} material={MAT_LEAF_M}><coneGeometry args={[h*0.35, h*0.32, 9]}/></mesh>
+      {/* Main canopy tiers */}
+      <mesh position={[0, cS + h*0.32, 0]} material={lMat}><coneGeometry args={[h*0.26, h*0.44, 8]}/></mesh>
+      <mesh position={[0, cS + h*0.56, 0]} material={lMat}><coneGeometry args={[h*0.17, h*0.32, 7]}/></mesh>
+      <mesh position={[0, cS + h*0.74, 0]} material={lMat}><coneGeometry args={[h*0.09, h*0.22, 6]}/></mesh>
     </group>
   );
 }
@@ -711,9 +718,8 @@ function LavaField() {
 // ─── Hill terrain ─────────────────────────────────────────────────────────────
 function Hill({ x, z, rx, rz, h }: HillDef) {
   return (
-    <mesh position={[x, 0, z]} scale={[rx, h, rz]}>
+    <mesh position={[x, 0, z]} scale={[rx, h, rz]} material={MAT_HILL}>
       <sphereGeometry args={[1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]}/>
-      <primitive object={MAT_HILL}/>
     </mesh>
   );
 }
@@ -941,6 +947,76 @@ function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef }: {
   );
 }
 
+// ─── Day / Night Cycle ────────────────────────────────────────────────────────
+function DayNightCycle() {
+  const { scene } = useThree();
+  const ambRef   = useRef<THREE.AmbientLight>(null!);
+  const sunRef   = useRef<THREE.DirectionalLight>(null!);
+  const fillRef  = useRef<THREE.DirectionalLight>(null!);
+  const bgCol    = useRef(new THREE.Color());
+  const CYCLE    = 30; // seconds per full day
+
+  useFrame(({ clock }) => {
+    const t = (clock.getElapsedTime() % CYCLE) / CYCLE; // 0 → 1
+    // sunPhase: -1 = midnight, +1 = noon
+    const sunPhase  = Math.sin(t * Math.PI * 2 - Math.PI * 0.5);
+    const dayF      = Math.max(0, sunPhase);               // 0 at night, 1 at noon
+    const dawnDusk  = Math.max(0, 1 - Math.abs(sunPhase) * 3); // spike at horizon crossing
+
+    // ── Ambient ──
+    if (ambRef.current) {
+      ambRef.current.intensity = 0.12 + dayF * 0.45 + dawnDusk * 0.15;
+      ambRef.current.color.setRGB(
+        0.07 + dayF * 0.14 + dawnDusk * 0.18,
+        0.10 + dayF * 0.24 + dawnDusk * 0.07,
+        0.08 + dayF * 0.22 + dawnDusk * 0.02
+      );
+    }
+
+    // ── Sun (moves across sky) ──
+    if (sunRef.current) {
+      const ang = t * Math.PI * 2;
+      sunRef.current.position.set(-Math.cos(ang) * 160, Math.sin(ang) * 200, -80);
+      sunRef.current.intensity = dayF * 0.75 + dawnDusk * 0.45;
+      sunRef.current.color.setRGB(
+        0.80 + dawnDusk * 0.20,
+        0.55 + dayF * 0.32 - dawnDusk * 0.08,
+        0.32 + dayF * 0.48 - dawnDusk * 0.22
+      );
+    }
+
+    // ── Cool fill / moonlight ──
+    if (fillRef.current) {
+      fillRef.current.intensity = 0.18 + dayF * 0.10;
+    }
+
+    // ── Sky background ──
+    bgCol.current.setRGB(
+      0.009 + dayF * 0.022 + dawnDusk * 0.018,
+      0.010 + dayF * 0.032 + dawnDusk * 0.006,
+      0.009 + dayF * 0.026 + dawnDusk * 0.002
+    );
+    scene.background = bgCol.current;
+
+    // ── Fog colour ──
+    if (scene.fog) {
+      (scene.fog as THREE.Fog).color.setRGB(
+        0.007 + dayF * 0.016 + dawnDusk * 0.013,
+        0.008 + dayF * 0.026 + dawnDusk * 0.004,
+        0.007 + dayF * 0.018 + dawnDusk * 0.001
+      );
+    }
+  });
+
+  return (
+    <>
+      <ambientLight ref={ambRef} intensity={0.18} color="#152515"/>
+      <directionalLight ref={sunRef} intensity={0} position={[0, 200, -80]}/>
+      <directionalLight ref={fillRef} intensity={0.22} color="#6677bb" position={[100, 60, 150]}/>
+    </>
+  );
+}
+
 // ─── Scene ────────────────────────────────────────────────────────────────────
 function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
@@ -955,11 +1031,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
   return (
     <>
       <fog attach="fog" args={['#060c06',2,95]}/>
-      <color attach="background" args={['#040804']}/>
-      <Stars radius={320} depth={80} count={6000} factor={4} saturation={0.15} fade speed={0.4}/>
-      <ambientLight intensity={0.32} color="#1e3828"/>
-      <directionalLight position={[-120,200,-80]} intensity={0.55} color="#8899cc"/>
-      <directionalLight position={[100,80,150]}  intensity={0.18} color="#224418"/>
+      <DayNightCycle/>
       <mesh position={[150,0,150]} rotation={[-Math.PI/2,0,0]} material={MAT_GROUND}><planeGeometry args={[340,340]}/></mesh>
       <GroundFog/>
       {HILLS.map((h,i) => <Hill key={i} {...h}/>)}
