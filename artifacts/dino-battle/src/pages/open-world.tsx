@@ -92,11 +92,11 @@ const FIREFLY_DEFS: FireflyDef[] = (() => {
 })();
 
 // ─── Module-level shared materials (never recreated) ─────────────────────────
-const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#3a1e0a' });
-const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#5a3010' });
-const MAT_LEAF_D   = new THREE.MeshLambertMaterial({ color: '#091f07' });
-const MAT_LEAF_L   = new THREE.MeshLambertMaterial({ color: '#112e0e' });
-const MAT_GROUND   = new THREE.MeshLambertMaterial({ color: '#0c1a09' });
+const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#5a3212' });
+const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#7a4820' });
+const MAT_LEAF_D   = new THREE.MeshLambertMaterial({ color: '#1a4a12' });
+const MAT_LEAF_L   = new THREE.MeshLambertMaterial({ color: '#245e1a' });
+const MAT_GROUND   = new THREE.MeshLambertMaterial({ color: '#142810' });
 const MAT_HILL     = new THREE.MeshLambertMaterial({ color: '#09150a' });
 const MAT_FOG      = new THREE.MeshBasicMaterial({ color: '#1a2e1a', transparent: true, opacity: 0.2, depthWrite: false });
 // Eye materials
@@ -957,8 +957,9 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
       <fog attach="fog" args={['#060c06',2,95]}/>
       <color attach="background" args={['#040804']}/>
       <Stars radius={320} depth={80} count={6000} factor={4} saturation={0.15} fade speed={0.4}/>
-      <ambientLight intensity={0.10} color="#182830"/>
-      <directionalLight position={[-120,200,-80]} intensity={0.3} color="#8899cc"/>
+      <ambientLight intensity={0.32} color="#1e3828"/>
+      <directionalLight position={[-120,200,-80]} intensity={0.55} color="#8899cc"/>
+      <directionalLight position={[100,80,150]}  intensity={0.18} color="#224418"/>
       <mesh position={[150,0,150]} rotation={[-Math.PI/2,0,0]} material={MAT_GROUND}><planeGeometry args={[340,340]}/></mesh>
       <GroundFog/>
       {HILLS.map((h,i) => <Hill key={i} {...h}/>)}
