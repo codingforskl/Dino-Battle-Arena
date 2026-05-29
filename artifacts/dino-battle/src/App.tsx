@@ -6,6 +6,7 @@ import { INITIAL_GAME_STATE, gameReducer } from '@/lib/game-engine';
 import SelectScreen from '@/pages/select-screen';
 import BattleArena from '@/pages/battle-arena';
 import OpenWorld from '@/pages/open-world';
+import SplashScreen from '@/pages/splash-screen';
 
 const queryClient = new QueryClient();
 
@@ -16,6 +17,11 @@ export const GameContext = React.createContext<{
 
 function AppContent() {
   const [state, dispatch] = React.useReducer(gameReducer, INITIAL_GAME_STATE);
+  const [showSplash, setShowSplash] = React.useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onEnter={() => setShowSplash(false)} />;
+  }
 
   return (
     <GameContext.Provider value={{ state, dispatch }}>

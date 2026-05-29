@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
@@ -22,6 +22,8 @@ const ENCOUNTER_RADIUS = 12;
 const DETECT_RADIUS    = 22;
 const SPEED            = 0.38;
 const EYE_HEIGHT       = 1.8;
+const MOUSE_SENS       = 0.0028;
+const MAX_PITCH        = Math.PI / 2.2;
 
 function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(ax - bx, ay - by);
@@ -45,7 +47,6 @@ const WORLD_TREES: TreeDef[] = (() => {
     const x = 2 + rng() * 96, z = 2 + rng() * 96;
     if (LAIRS.some(l => dist(x, z, l.x, l.y) < 9)) continue;
     if (dist(x, z, 50, 50) < 5) continue;
-    // skip sparse highland/plains area occasionally
     if (x > 62 && z < 42 && rng() > 0.35) continue;
     out.push({ x, z, h: 5 + rng() * 18, dark: rng() > 0.5 });
   }
@@ -240,7 +241,6 @@ function GiganotosaurusBody() {
   );
 }
 
-// Eye glow heights for each dino (world units)
 const DINO_EYE_Y: Record<DinoId, number> = {
   velociraptor: 8, spinosaurus: 18, pterodactylus: 56, trex: 28, giganotosaurus: 37, hunter: 0,
 };
@@ -324,40 +324,44 @@ function CapturedMarker({ x, z, status }: { x: number; z: number; status: 'captu
   );
 }
 
-// ─── FPS camera (inside Canvas) ───────────────────────────────────────────────
+// ─── FPS Camera (yaw/pitch based) ─────────────────────────────────────────────
 function FPSCamera({
-  posRef, lookDirRef, movingRef,
+  posRef, yawRef, pitchRef, movingRef,
 }: {
-  posRef:     React.MutableRefObject<{ x: number; y: number }>;
-  lookDirRef: React.MutableRefObject<{ x: number; z: number }>;
-  movingRef:  React.MutableRefObject<boolean>;
+  posRef:    React.MutableRefObject<{ x: number; y: number }>;
+  yawRef:    React.MutableRefObject<number>;
+  pitchRef:  React.MutableRefObject<number>;
+  movingRef: React.MutableRefObject<boolean>;
 }) {
   const { camera } = useThree();
+
+  useEffect(() => {
+    camera.rotation.order = 'YXZ';
+  }, [camera]);
+
   useFrame(({ clock }) => {
-    const px = posRef.current.x;
-    const pz = posRef.current.y;
+    const px  = posRef.current.x;
+    const pz  = posRef.current.y;
     const bob = movingRef.current ? Math.sin(clock.getElapsedTime() * 8) * 0.07 : 0;
     camera.position.set(px, EYE_HEIGHT + bob, pz);
-    camera.lookAt(
-      px + lookDirRef.current.x * 12,
-      EYE_HEIGHT + bob * 0.3,
-      pz + lookDirRef.current.z * 12,
-    );
+    camera.rotation.y = yawRef.current;
+    camera.rotation.x = pitchRef.current;
   });
   return null;
 }
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
 function WorldScene({
-  posRef, lookDirRef, movingRef,
+  posRef, yawRef, pitchRef, movingRef,
   getDinoStatus, nearbyDinos, encounterable,
 }: {
-  posRef:       React.MutableRefObject<{ x: number; y: number }>;
-  lookDirRef:   React.MutableRefObject<{ x: number; z: number }>;
-  movingRef:    React.MutableRefObject<boolean>;
-  getDinoStatus:(id: DinoId) => DinoStatus;
-  nearbyDinos:  Set<DinoId>;
-  encounterable:DinoId | null;
+  posRef:        React.MutableRefObject<{ x: number; y: number }>;
+  yawRef:        React.MutableRefObject<number>;
+  pitchRef:      React.MutableRefObject<number>;
+  movingRef:     React.MutableRefObject<boolean>;
+  getDinoStatus: (id: DinoId) => DinoStatus;
+  nearbyDinos:   Set<DinoId>;
+  encounterable: DinoId | null;
 }) {
   return (
     <>
@@ -365,25 +369,18 @@ function WorldScene({
       <color attach="background" args={['#040804']} />
       <Stars radius={120} depth={55} count={3500} factor={4} saturation={0.15} fade speed={0.4} />
 
-      {/* Lighting */}
       <ambientLight intensity={0.1} color="#182830" />
       <directionalLight position={[-40, 80, -30]} intensity={0.32} color="#8899cc" />
       <pointLight position={[81, 20, 76]} intensity={5} color="#ff4400" distance={80} decay={1.5} />
 
-      {/* Ground */}
       <mesh position={[50, 0, 50]} rotation={[-Math.PI / 2, 0, 0]} material={MATS.ground}>
         <planeGeometry args={[115, 115]} />
       </mesh>
 
       <GroundFog />
-
-      {/* Trees */}
       {WORLD_TREES.map((t, i) => <Tree key={i} {...t} />)}
-
-      {/* Fireflies */}
       {FIREFLY_DEFS.map((f, i) => <Firefly key={i} {...f} />)}
 
-      {/* Dinos */}
       {LAIRS.map(lair => (
         <ScaryDino
           key={lair.dinoId}
@@ -395,7 +392,6 @@ function WorldScene({
         />
       ))}
 
-      {/* Captured/fled markers */}
       {LAIRS.map(lair => {
         const st = getDinoStatus(lair.dinoId);
         if (st === 'remaining') return null;
@@ -403,7 +399,7 @@ function WorldScene({
       })}
 
       <VolcanoMesh />
-      <FPSCamera posRef={posRef} lookDirRef={lookDirRef} movingRef={movingRef} />
+      <FPSCamera posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} />
     </>
   );
 }
@@ -413,18 +409,25 @@ export default function OpenWorld() {
   const ctx = useContext(GameContext);
 
   const posRef      = useRef({ x: 50, y: 50 });
-  const lookDirRef  = useRef({ x: 0, z: -1 });
+  // yaw: camera horizontal angle. 0 = looking toward +Z, Math.PI = looking toward -Z
+  const yawRef      = useRef(Math.PI);
+  const pitchRef    = useRef(0);
   const movingRef   = useRef(false);
   const keysRef     = useRef<Set<string>>(new Set());
   const rafRef      = useRef(0);
 
-  // Throttle state — only update React state when values change
-  const lastNearbyKeyRef  = useRef('');
-  const lastEncounteRef   = useRef<DinoId | null>(null);
+  // Mouse look state
+  const isDraggingRef   = useRef(false);
+  const lastMouseRef    = useRef({ x: 0, y: 0 });
+
+  // Throttle state
+  const lastNearbyKeyRef = useRef('');
+  const lastEncounteRef  = useRef<DinoId | null>(null);
 
   const [nearbyDinos,   setNearbyDinos]   = useState<Set<DinoId>>(new Set());
   const [encounterable, setEncounterable] = useState<DinoId | null>(null);
   const [encounterFlash,setEncounterFlash]= useState<DinoId | null>(null);
+  const [isDragging,    setIsDragging]    = useState(false);
 
   const state         = ctx?.state;
   const capturedDinos = state?.capturedDinos    ?? [];
@@ -437,6 +440,7 @@ export default function OpenWorld() {
     return 'remaining';
   }, [capturedDinos, fledDinos]);
 
+  // ─── Keyboard movement loop ────────────────────────────────────────────────
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => { keysRef.current.add(e.key); };
     const onUp   = (e: KeyboardEvent) => { keysRef.current.delete(e.key); };
@@ -447,32 +451,28 @@ export default function OpenWorld() {
       const keys = keysRef.current;
       let { x, y } = posRef.current;
       let moved = false;
-      let ldx = lookDirRef.current.x;
-      let ldz = lookDirRef.current.z;
 
-      const left  = keys.has('ArrowLeft')  || keys.has('a') || keys.has('A');
-      const right = keys.has('ArrowRight') || keys.has('d') || keys.has('D');
-      const up    = keys.has('ArrowUp')    || keys.has('w') || keys.has('W');
-      const down  = keys.has('ArrowDown')  || keys.has('s') || keys.has('S');
+      const fwdX = -Math.sin(yawRef.current);
+      const fwdZ = -Math.cos(yawRef.current);
+      const rtX  =  Math.cos(yawRef.current);
+      const rtZ  = -Math.sin(yawRef.current);
 
-      if (left)  { x -= SPEED; moved = true; ldx = -1; ldz =  0; }
-      if (right) { x += SPEED; moved = true; ldx =  1; ldz =  0; }
-      if (up)    { y -= SPEED; moved = true; ldx =  0; ldz = -1; }
-      if (down)  { y += SPEED; moved = true; ldx =  0; ldz =  1; }
-      // diagonal
-      if (left  && up)   { ldx = -0.707; ldz = -0.707; }
-      if (right && up)   { ldx =  0.707; ldz = -0.707; }
-      if (left  && down) { ldx = -0.707; ldz =  0.707; }
-      if (right && down) { ldx =  0.707; ldz =  0.707; }
+      const forward  = keys.has('ArrowUp')    || keys.has('w') || keys.has('W');
+      const backward = keys.has('ArrowDown')  || keys.has('s') || keys.has('S');
+      const strafeL  = keys.has('ArrowLeft')  || keys.has('a') || keys.has('A');
+      const strafeR  = keys.has('ArrowRight') || keys.has('d') || keys.has('D');
+
+      if (forward)  { x += fwdX * SPEED; y += fwdZ * SPEED; moved = true; }
+      if (backward) { x -= fwdX * SPEED; y -= fwdZ * SPEED; moved = true; }
+      if (strafeL)  { x -= rtX  * SPEED; y -= rtZ  * SPEED; moved = true; }
+      if (strafeR)  { x += rtX  * SPEED; y += rtZ  * SPEED; moved = true; }
 
       movingRef.current = moved;
       if (moved) {
-        lookDirRef.current = { x: ldx, z: ldz };
         posRef.current = { x: Math.max(3, Math.min(97, x)), y: Math.max(3, Math.min(97, y)) };
 
-        // Build nearby set
-        const pp = posRef.current;
-        const nb = new Set<DinoId>();
+        const pp  = posRef.current;
+        const nb  = new Set<DinoId>();
         let enc: DinoId | null = null;
         for (const lair of LAIRS) {
           if (getDinoStatus(lair.dinoId) !== 'remaining') continue;
@@ -481,7 +481,6 @@ export default function OpenWorld() {
           if (d < ENCOUNTER_RADIUS) enc = lair.dinoId;
         }
 
-        // Only update React state when values change
         const nbKey = [...nb].sort().join(',');
         if (nbKey !== lastNearbyKeyRef.current) {
           lastNearbyKeyRef.current = nbKey;
@@ -503,6 +502,45 @@ export default function OpenWorld() {
     };
   }, [getDinoStatus]);
 
+  // ─── Mouse look (right-click drag) ────────────────────────────────────────
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 2) return;
+      isDraggingRef.current = true;
+      lastMouseRef.current  = { x: e.clientX, y: e.clientY };
+      setIsDragging(true);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = e.clientX - lastMouseRef.current.x;
+      const dy = e.clientY - lastMouseRef.current.y;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      yawRef.current   -= dx * MOUSE_SENS;
+      pitchRef.current  = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, pitchRef.current - dy * MOUSE_SENS));
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button !== 2) return;
+      isDraggingRef.current = false;
+      setIsDragging(false);
+    };
+
+    const onContextMenu = (e: Event) => e.preventDefault();
+
+    window.addEventListener('mousedown',   onMouseDown);
+    window.addEventListener('mousemove',   onMouseMove);
+    window.addEventListener('mouseup',     onMouseUp);
+    window.addEventListener('contextmenu', onContextMenu);
+
+    return () => {
+      window.removeEventListener('mousedown',   onMouseDown);
+      window.removeEventListener('mousemove',   onMouseMove);
+      window.removeEventListener('mouseup',     onMouseUp);
+      window.removeEventListener('contextmenu', onContextMenu);
+    };
+  }, []);
+
   const handleEngage = () => {
     if (!encounterable) return;
     const id = encounterable;
@@ -520,7 +558,7 @@ export default function OpenWorld() {
   const dinoName      = encounterable ? DINOSAURS[encounterable]?.name ?? encounterable : '';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#040804', userSelect: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#040804', userSelect: 'none', cursor: isDragging ? 'grabbing' : 'default' }}>
 
       {/* ── 3D Canvas ── */}
       <Canvas
@@ -530,7 +568,8 @@ export default function OpenWorld() {
       >
         <WorldScene
           posRef={posRef}
-          lookDirRef={lookDirRef}
+          yawRef={yawRef}
+          pitchRef={pitchRef}
           movingRef={movingRef}
           getDinoStatus={getDinoStatus}
           nearbyDinos={nearbyDinos}
@@ -551,7 +590,7 @@ export default function OpenWorld() {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%)', pointerEvents: 'none' }}>
         <div>
           <div style={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#88dd44', fontSize: 14, textShadow: '0 0 10px #44aa22' }}>🌿 WILD HUNT</div>
-          <div style={{ color: '#557733', fontSize: 9, fontWeight: 700, marginTop: 2 }}>WASD / Arrow Keys to move</div>
+          <div style={{ color: '#557733', fontSize: 9, fontWeight: 700, marginTop: 2 }}>WASD to move · Right-click drag to look</div>
         </div>
         <div style={{ background: 'rgba(0,0,0,0.75)', border: '2px solid #44aa22', borderRadius: 10, padding: '5px 12px', textAlign: 'center', pointerEvents: 'none' }}>
           <div style={{ color: '#88dd44', fontSize: 9, fontWeight: 800, textTransform: 'uppercase' }}>Captured</div>
@@ -656,7 +695,8 @@ export default function OpenWorld() {
           </div>
         </div>
         <div style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '5px 10px', textAlign: 'center', fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>
-          <div> ▲ </div><div>◀ WASD ▶</div><div> ▼ </div>
+          <div>WASD · Move</div>
+          <div style={{ marginTop: 2 }}>Right-click · Look</div>
         </div>
       </div>
     </div>
