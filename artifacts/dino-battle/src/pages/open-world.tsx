@@ -12,21 +12,22 @@ interface LairDef { dinoId: DinoId; x: number; y: number; }
 type DinoStatus = 'remaining' | 'captured' | 'fled';
 
 const LAIRS: LairDef[] = [
-  { dinoId: 'velociraptor',   x: 16, y: 22 },
-  { dinoId: 'spinosaurus',    x: 18, y: 73 },
-  { dinoId: 'pterodactylus',  x: 50, y: 48 },
-  { dinoId: 'trex',           x: 80, y: 20 },
-  { dinoId: 'giganotosaurus', x: 63, y: 83 },
+  { dinoId: 'velociraptor',   x: 22,  y: 28  },
+  { dinoId: 'spinosaurus',    x: 22,  y: 130 },
+  { dinoId: 'pterodactylus',  x: 80,  y: 72  },
+  { dinoId: 'trex',           x: 138, y: 24  },
+  { dinoId: 'giganotosaurus', x: 108, y: 138 },
 ];
-const ENCOUNTER_RADIUS = 12;
-const DETECT_RADIUS    = 22;
-const SPEED            = 0.38;
+const ENCOUNTER_RADIUS = 14;
+const DETECT_RADIUS    = 26;
+const SPEED            = 0.45;
 const EYE_HEIGHT       = 1.8;
 const MOUSE_SENS       = 0.0028;
 const MAX_PITCH        = Math.PI / 2.2;
 const VOLCANO_X        = 81;
 const VOLCANO_Z        = 76;
 const VOLCANO_COL_R    = 15;
+const WORLD_MAX        = 155;
 
 function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(ax - bx, ay - by);
@@ -41,13 +42,12 @@ function mkRng(seed: number) {
 interface TreeDef { x: number; z: number; h: number; dark: boolean; }
 const WORLD_TREES: TreeDef[] = (() => {
   const rng = mkRng(42); const out: TreeDef[] = [];
-  for (let i = 0; i < 160; i++) {
-    const x = 2 + rng() * 96, z = 2 + rng() * 96;
-    if (LAIRS.some(l => dist(x, z, l.x, l.y) < 9)) continue;
-    if (dist(x, z, 50, 50) < 5) continue;
-    if (dist(x, z, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R + 4) continue;
-    if (x > 62 && z < 42 && rng() > 0.35) continue;
-    out.push({ x, z, h: 5 + rng() * 18, dark: rng() > 0.5 });
+  for (let i = 0; i < 320; i++) {
+    const x = 4 + rng() * 150, z = 4 + rng() * 150;
+    if (LAIRS.some(l => dist(x, z, l.x, l.y) < 10)) continue;
+    if (dist(x, z, 78, 78) < 5) continue;
+    if (dist(x, z, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R + 5) continue;
+    out.push({ x, z, h: 5 + rng() * 20, dark: rng() > 0.5 });
   }
   return out;
 })();
@@ -55,7 +55,7 @@ const WORLD_TREES: TreeDef[] = (() => {
 interface FireflyDef { x: number; z: number; y: number; phase: number; speed: number; }
 const FIREFLY_DEFS: FireflyDef[] = (() => {
   const rng = mkRng(77);
-  return Array.from({ length: 55 }, () => ({ x: 3 + rng() * 94, z: 3 + rng() * 94, y: 1.2 + rng() * 4, phase: rng() * Math.PI * 2, speed: 0.4 + rng() * 0.8 }));
+  return Array.from({ length: 90 }, () => ({ x: 4 + rng() * 150, z: 4 + rng() * 150, y: 1.2 + rng() * 4, phase: rng() * Math.PI * 2, speed: 0.4 + rng() * 0.8 }));
 })();
 
 // ─── Module-level shared materials (never recreated) ─────────────────────────
@@ -130,13 +130,13 @@ function Firefly({ x, z, y, phase, speed }: FireflyDef) {
 function GroundFog() {
   const ref = useRef<THREE.Mesh>(null!);
   useFrame(({ clock }) => { if (ref.current) (ref.current.material as THREE.MeshBasicMaterial).opacity = 0.18 + Math.sin(clock.getElapsedTime()*0.13)*0.05; });
-  return <mesh ref={ref} position={[50,0.35,50]} rotation={[-Math.PI/2,0,0]} material={MAT_FOG}><planeGeometry args={[115,115]}/></mesh>;
+  return <mesh ref={ref} position={[78,0.35,78]} rotation={[-Math.PI/2,0,0]} material={MAT_FOG}><planeGeometry args={[185,185]}/></mesh>;
 }
 
 // ─── VELOCIRAPTOR ─────────────────────────────────────────────────────────────
 function VelociraptorBody() {
   return (
-    <group scale={5}>
+    <group scale={1.4}>
       {/* Thighs */}
       <mesh position={[-0.14,0.62,-0.08]} rotation={[0.35,0,0.12]} material={MAT_VELOC_BODY}><cylinderGeometry args={[0.11,0.09,0.6,8]}/></mesh>
       <mesh position={[ 0.14,0.62,-0.08]} rotation={[0.35,0,-0.12]} material={MAT_VELOC_BODY}><cylinderGeometry args={[0.11,0.09,0.6,8]}/></mesh>
@@ -184,7 +184,7 @@ function VelociraptorBody() {
 // ─── SPINOSAURUS ──────────────────────────────────────────────────────────────
 function SpinosaurusBody() {
   return (
-    <group scale={10}>
+    <group scale={3.0}>
       {/* Legs */}
       <mesh position={[-0.2,0.6,0]} rotation={[0.15,0,0.1]} material={MAT_SPINO_BODY}><cylinderGeometry args={[0.14,0.12,1.0,8]}/></mesh>
       <mesh position={[ 0.2,0.6,0]} rotation={[0.15,0,-0.1]} material={MAT_SPINO_BODY}><cylinderGeometry args={[0.14,0.12,1.0,8]}/></mesh>
@@ -225,7 +225,7 @@ function SpinosaurusBody() {
 // ─── PTERODACTYLUS ────────────────────────────────────────────────────────────
 function PterodactylusBody() {
   return (
-    <group scale={8} position={[0,8,0]}>
+    <group scale={3.0} position={[0,5,0]}>
       {/* Body */}
       <mesh position={[0,0,0]} material={MAT_PTERO_BODY}><boxGeometry args={[0.44,0.32,0.52]}/></mesh>
       <mesh position={[0,-0.1,0.1]} material={MAT_PTERO_BODY}><boxGeometry args={[0.3,0.18,0.3]}/></mesh>
@@ -262,7 +262,7 @@ function PterodactylusBody() {
 // ─── T-REX ────────────────────────────────────────────────────────────────────
 function TRexBody() {
   return (
-    <group scale={13}>
+    <group scale={3.8}>
       {/* Massive legs */}
       <mesh position={[-0.24,0.72,-0.04]} rotation={[0.1,0,0.08]} material={MAT_TREX_BODY}><cylinderGeometry args={[0.17,0.14,1.2,9]}/></mesh>
       <mesh position={[ 0.24,0.72,-0.04]} rotation={[0.1,0,-0.08]} material={MAT_TREX_BODY}><cylinderGeometry args={[0.17,0.14,1.2,9]}/></mesh>
@@ -324,7 +324,7 @@ function TRexBody() {
 // ─── GIGANOTOSAURUS ───────────────────────────────────────────────────────────
 function GiganotosaurusBody() {
   return (
-    <group scale={16}>
+    <group scale={4.5}>
       {/* Legs */}
       <mesh position={[-0.26,0.78,-0.04]} rotation={[0.1,0,0.08]} material={MAT_GIGA_BODY}><cylinderGeometry args={[0.19,0.16,1.3,9]}/></mesh>
       <mesh position={[ 0.26,0.78,-0.04]} rotation={[0.1,0,-0.08]} material={MAT_GIGA_BODY}><cylinderGeometry args={[0.19,0.16,1.3,9]}/></mesh>
@@ -376,7 +376,7 @@ function GiganotosaurusBody() {
 }
 
 // ─── Dino eye heights & colors ────────────────────────────────────────────────
-const DINO_EYE_Y: Record<DinoId, number>     = { velociraptor:9, spinosaurus:20, pterodactylus:58, trex:32, giganotosaurus:42, hunter:0 };
+const DINO_EYE_Y: Record<DinoId, number>     = { velociraptor:2.6, spinosaurus:6.4, pterodactylus:6.2, trex:9.7, giganotosaurus:12.1, hunter:0 };
 const DINO_EYE_COLOR: Record<DinoId, string> = { velociraptor:'#ff1100', spinosaurus:'#ffaa00', pterodactylus:'#ff8800', trex:'#ff0000', giganotosaurus:'#ff5500', hunter:'#ffffff' };
 
 // ─── Animated dino wrapper ────────────────────────────────────────────────────
@@ -410,60 +410,95 @@ function ScaryDino({ lair, status, isNearby, isEncounterable, playerPosRef }: {
   );
 }
 
-// ─── Lava field around volcano ────────────────────────────────────────────────
+// ─── Flowing lava field around volcano ───────────────────────────────────────
+// Each river is split into 5 segments with staggered phase → looks like flowing
+function FlowRiver({ segs, rotation, baseColor, phase0 }: {
+  segs: [number,number,number][]; rotation: [number,number,number]; baseColor: string; phase0: number;
+}) {
+  const refs = [
+    useRef<THREE.Mesh>(null!), useRef<THREE.Mesh>(null!), useRef<THREE.Mesh>(null!),
+    useRef<THREE.Mesh>(null!), useRef<THREE.Mesh>(null!),
+  ];
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    refs.forEach((r, i) => {
+      if (r.current) {
+        // Each segment pulses at the same frequency but with increasing phase offset → "flow"
+        (r.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
+          1.4 + Math.sin(t * 2.2 + phase0 + i * 0.9) * 1.1;
+      }
+    });
+  });
+  return (
+    <>
+      {segs.map(([x, y, z], i) => (
+        <mesh key={i} ref={refs[i]} position={[x, y, z]} rotation={rotation}>
+          <planeGeometry args={[2.4, 4.5]}/>
+          <meshStandardMaterial color={baseColor} emissive={baseColor} emissiveIntensity={1.8} roughness={0.18}/>
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 function LavaField() {
-  const poolRef   = useRef<THREE.Mesh>(null!);
-  const r1Ref     = useRef<THREE.Mesh>(null!);
-  const r2Ref     = useRef<THREE.Mesh>(null!);
-  const r3Ref     = useRef<THREE.Mesh>(null!);
-  const glowRef   = useRef<THREE.PointLight>(null!);
+  const poolRef = useRef<THREE.Mesh>(null!);
+  const glow1   = useRef<THREE.PointLight>(null!);
+  const glow2   = useRef<THREE.PointLight>(null!);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    const setEI = (ref: React.MutableRefObject<THREE.Mesh>, v: number) => {
-      if (ref.current) (ref.current.material as THREE.MeshStandardMaterial).emissiveIntensity = v;
-    };
-    setEI(poolRef, 2.5 + Math.sin(t*1.8)*0.9);
-    setEI(r1Ref,   2.0 + Math.sin(t*2.3+1.1)*0.7);
-    setEI(r2Ref,   1.8 + Math.sin(t*2.7+2.2)*0.6);
-    setEI(r3Ref,   2.1 + Math.sin(t*1.5+0.5)*0.8);
-    if (glowRef.current) glowRef.current.intensity = 5 + Math.sin(t*2.1)*2;
+    if (poolRef.current) (poolRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 3.0 + Math.sin(t*1.6)*1.2;
+    if (glow1.current)   glow1.current.intensity = 12 + Math.sin(t*2.1)*4;
+    if (glow2.current)   glow2.current.intensity = 8  + Math.sin(t*1.7+1.0)*3;
   });
+
+  // River 1 NW: 5 segments marching away from volcano
+  const r1Segs: [number,number,number][] = [[-5,0.14,-4],[-8,0.13,-7],[-11,0.12,-10],[-14,0.11,-13],[-17,0.1,-16]];
+  // River 2 SW: flows south-west
+  const r2Segs: [number,number,number][] = [[-5,0.14,5],[-8,0.13,9],[-11,0.12,13],[-14,0.11,17],[-17,0.1,21]];
+  // River 3 E: flows east
+  const r3Segs: [number,number,number][] = [[7,0.14,1],[11,0.13,1],[15,0.12,1],[19,0.11,1],[23,0.1,1]];
 
   return (
     <group position={[VOLCANO_X, 0, VOLCANO_Z]}>
       {/* Main lava pool */}
-      <mesh ref={poolRef} position={[0,0.12,0]} rotation={[-Math.PI/2,0,0]}>
-        <circleGeometry args={[9,20]}/>
-        <meshStandardMaterial color="#ff3300" emissive="#ff1100" emissiveIntensity={2.5} roughness={0.2}/>
+      <mesh ref={poolRef} position={[0,0.15,0]} rotation={[-Math.PI/2,0,0]}>
+        <circleGeometry args={[9,24]}/>
+        <meshStandardMaterial color="#ff3300" emissive="#ff1100" emissiveIntensity={3.0} roughness={0.15}/>
       </mesh>
-      {/* Cooled crust ring */}
-      <mesh position={[0,0.08,0]} rotation={[-Math.PI/2,0,0]} material={MAT_LAVA_CRUST}>
-        <ringGeometry args={[9,13,20]}/>
+      {/* Cooled crust ring around pool */}
+      <mesh position={[0,0.09,0]} rotation={[-Math.PI/2,0,0]} material={MAT_LAVA_CRUST}>
+        <ringGeometry args={[9,14,24]}/>
       </mesh>
-      {/* Crust chunks on pool edge */}
-      {[0,1,2,3,4,5].map(i => {
-        const a = (i/6)*Math.PI*2;
-        return <mesh key={i} position={[Math.cos(a)*7.5, 0.18, Math.sin(a)*7.5]} rotation={[-Math.PI/2,0,a]} material={MAT_LAVA_CRUST}><planeGeometry args={[2.2,1.5]}/></mesh>;
+
+      {/* Flowing rivers */}
+      <FlowRiver segs={r1Segs} rotation={[-Math.PI/2, 0, Math.PI*0.25]} baseColor="#ff4400" phase0={0.0}/>
+      <FlowRiver segs={r2Segs} rotation={[-Math.PI/2, 0, -Math.PI*0.2]} baseColor="#ff5500" phase0={1.2}/>
+      <FlowRiver segs={r3Segs} rotation={[-Math.PI/2, 0, Math.PI*0.5]}  baseColor="#ff3800" phase0={2.4}/>
+
+      {/* River crust borders */}
+      {r1Segs.map(([x,y,z],i) => <mesh key={`c1${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,Math.PI*0.25]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
+      {r2Segs.map(([x,y,z],i) => <mesh key={`c2${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,-Math.PI*0.2]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
+      {r3Segs.map(([x,y,z],i) => <mesh key={`c3${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,Math.PI*0.5]}  material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
+
+      {/* ── VOLCANO AREA LIGHTING: many strong lights ── */}
+      {/* Core pool glow — very bright */}
+      <pointLight ref={glow1} position={[0, 4, 0]}   intensity={12} color="#ff4400" distance={70} decay={1.2}/>
+      <pointLight ref={glow2} position={[0, 1.5, 0]} intensity={8}  color="#ff6600" distance={50} decay={1.4}/>
+      {/* Ring of lights around pool edge */}
+      {[0,1,2,3,4,5,6,7].map(i => {
+        const a = (i/8)*Math.PI*2;
+        return <pointLight key={i} position={[Math.cos(a)*8, 1.5, Math.sin(a)*8]} intensity={5} color={i%2===0?'#ff3300':'#ff6600'} distance={35} decay={1.8}/>;
       })}
-      {/* River 1 – NW */}
-      <mesh ref={r1Ref} position={[-6,0.1,-5]} rotation={[-Math.PI/2,0,Math.PI*0.72]}>
-        <planeGeometry args={[3,10]}/>
-        <meshStandardMaterial color="#ff4400" emissive="#ff2200" emissiveIntensity={2.0} roughness={0.25}/>
-      </mesh>
-      {/* River 2 – SW */}
-      <mesh ref={r2Ref} position={[-7,0.1,6]} rotation={[-Math.PI/2,0,Math.PI*0.22]}>
-        <planeGeometry args={[2.5,9]}/>
-        <meshStandardMaterial color="#ff5500" emissive="#ff3300" emissiveIntensity={1.8} roughness={0.25}/>
-      </mesh>
-      {/* River 3 – E */}
-      <mesh ref={r3Ref} position={[8,0.1,2]} rotation={[-Math.PI/2,0,Math.PI*0.55]}>
-        <planeGeometry args={[2,7]}/>
-        <meshStandardMaterial color="#ff4800" emissive="#ff2800" emissiveIntensity={2.1} roughness={0.25}/>
-      </mesh>
-      <pointLight ref={glowRef} position={[0,3,0]} intensity={5} color="#ff4400" distance={55} decay={1.4}/>
-      <pointLight position={[-7,1.5,-5]} intensity={2.5} color="#ff3300" distance={25} decay={2}/>
-      <pointLight position={[-7,1.5, 6]} intensity={2.5} color="#ff4400" distance={22} decay={2}/>
+      {/* River 1 lights */}
+      {r1Segs.map(([x,_y,z],i) => <pointLight key={`l1${i}`} position={[x,2,z]} intensity={3.5} color="#ff4400" distance={22} decay={2}/>)}
+      {/* River 2 lights */}
+      {r2Segs.map(([x,_y,z],i) => <pointLight key={`l2${i}`} position={[x,2,z]} intensity={3.5} color="#ff5500" distance={22} decay={2}/>)}
+      {/* River 3 lights */}
+      {r3Segs.map(([x,_y,z],i) => <pointLight key={`l3${i}`} position={[x,2,z]} intensity={3.5} color="#ff3800" distance={22} decay={2}/>)}
+      {/* Distant warm sky-fill from eruption */}
+      <pointLight position={[0, 28, 0]} intensity={6} color="#ff2200" distance={120} decay={1.0}/>
     </group>
   );
 }
@@ -534,12 +569,12 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
 }) {
   return (
     <>
-      <fog attach="fog" args={['#060c06',1.5,36]}/>
+      <fog attach="fog" args={['#060c06',2,58]}/>
       <color attach="background" args={['#040804']}/>
-      <Stars radius={120} depth={55} count={3500} factor={4} saturation={0.15} fade speed={0.4}/>
+      <Stars radius={180} depth={60} count={4500} factor={4} saturation={0.15} fade speed={0.4}/>
       <ambientLight intensity={0.12} color="#182830"/>
-      <directionalLight position={[-40,80,-30]} intensity={0.35} color="#8899cc"/>
-      <mesh position={[50,0,50]} rotation={[-Math.PI/2,0,0]} material={MAT_GROUND}><planeGeometry args={[115,115]}/></mesh>
+      <directionalLight position={[-60,100,-40]} intensity={0.35} color="#8899cc"/>
+      <mesh position={[78,0,78]} rotation={[-Math.PI/2,0,0]} material={MAT_GROUND}><planeGeometry args={[185,185]}/></mesh>
       <GroundFog/>
       {WORLD_TREES.map((t,i) => <Tree key={i} {...t}/>)}
       {FIREFLY_DEFS.map((f,i) => <Firefly key={i} {...f}/>)}
@@ -606,8 +641,8 @@ export default function OpenWorld() {
       if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) { x+=rtX*SPEED;  y+=rtZ*SPEED;  moved=true; }
       movingRef.current = moved;
       if (moved) {
-        x = Math.max(3, Math.min(97, x));
-        y = Math.max(3, Math.min(97, y));
+        x = Math.max(3, Math.min(WORLD_MAX, x));
+        y = Math.max(3, Math.min(WORLD_MAX, y));
         if (dist(x, y, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R) { x=posRef.current.x; y=posRef.current.y; }
         posRef.current = { x, y };
         const nb = new Set<DinoId>(); let enc: DinoId|null = null;
@@ -658,7 +693,7 @@ export default function OpenWorld() {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'#040804', userSelect:'none', cursor:isDragging?'grabbing':'default' }}>
-      <Canvas camera={{ position:[50,EYE_HEIGHT,78], fov:78, near:0.05, far:180 }} gl={{ antialias:true, alpha:false }} style={{ position:'absolute', inset:0 }}>
+      <Canvas camera={{ position:[78,EYE_HEIGHT,130], fov:78, near:0.05, far:220 }} gl={{ antialias:true, alpha:false }} style={{ position:'absolute', inset:0 }}>
         <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable}/>
       </Canvas>
 
