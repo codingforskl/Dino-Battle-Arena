@@ -94,6 +94,10 @@ const MAT_GIGA_DARK   = new THREE.MeshStandardMaterial({ color: '#300c02', rough
 const MAT_GIGA_SCALE  = new THREE.MeshStandardMaterial({ color: '#8a3614', roughness: 0.9,  metalness: 0.02 });
 const MAT_ROCK        = new THREE.MeshStandardMaterial({ color: '#1a0e06', roughness: 0.95 });
 const MAT_LAVA_CRUST  = new THREE.MeshStandardMaterial({ color: '#220600', roughness: 0.95 });
+const MAT_LAVA_POOL   = new THREE.MeshStandardMaterial({ color: '#ff3300', emissive: '#ff1100', emissiveIntensity: 3.0, roughness: 0.15 });
+const MAT_LAVA_R1     = new THREE.MeshStandardMaterial({ color: '#ff4400', emissive: '#ff2200', emissiveIntensity: 2.0, roughness: 0.18 });
+const MAT_LAVA_R2     = new THREE.MeshStandardMaterial({ color: '#ff5500', emissive: '#ff3300', emissiveIntensity: 2.0, roughness: 0.18 });
+const MAT_LAVA_R3     = new THREE.MeshStandardMaterial({ color: '#ff3800', emissive: '#ff1800', emissiveIntensity: 2.0, roughness: 0.18 });
 const MAT_SMOKE       = new THREE.MeshStandardMaterial({ color: '#1a1a22', transparent: true, opacity: 0.25, roughness: 1 });
 
 // ─── Tree ─────────────────────────────────────────────────────────────────────
@@ -375,6 +379,179 @@ function GiganotosaurusBody() {
   );
 }
 
+// ─── Minimap ──────────────────────────────────────────────────────────────────
+const MM_SIZE  = 164;   // canvas pixels
+const MM_WORLD = 158;   // world units (3 … 155 → ~158)
+
+const DINO_DOT_COLOR: Record<DinoId, string> = {
+  velociraptor:   '#ff5555',
+  spinosaurus:    '#55aaff',
+  pterodactylus:  '#ffcc33',
+  trex:           '#ff2222',
+  giganotosaurus: '#ff7700',
+  hunter:         '#ffffff',
+};
+
+function Minimap({ posRef, yawRef, getDinoStatus }: {
+  posRef:        React.MutableRefObject<{x:number;y:number}>;
+  yawRef:        React.MutableRefObject<number>;
+  getDinoStatus: (id: DinoId) => 'remaining' | 'captured' | 'fled';
+}) {
+  const canvasRef      = useRef<HTMLCanvasElement>(null!);
+  const statusRef      = useRef(getDinoStatus);
+  useEffect(() => { statusRef.current = getDinoStatus; });
+
+  useEffect(() => {
+    const cvs = canvasRef.current;
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d')!;
+    const S = MM_SIZE;
+    const W = MM_WORLD;
+    const wx = (x: number) => Math.round((x / W) * S);
+    const wz = (z: number) => Math.round((z / W) * S);
+
+    let raf: number;
+    let blinkTimer = 0;
+    let blinkOn = true;
+    let last = performance.now();
+
+    function draw(time: number) {
+      const dt = time - last; last = time;
+      blinkTimer += dt;
+      if (blinkTimer > 480) { blinkTimer = 0; blinkOn = !blinkOn; }
+
+      ctx.clearRect(0, 0, S, S);
+
+      // ── Ground background ──
+      ctx.fillStyle = '#0b1a0b';
+      ctx.fillRect(0, 0, S, S);
+
+      // ── Subtle dot-grid ──
+      ctx.fillStyle = 'rgba(50,100,50,0.22)';
+      for (let gx = 0; gx < S; gx += 16)
+        for (let gz = 0; gz < S; gz += 16) {
+          ctx.fillRect(gx, gz, 1, 1);
+        }
+
+      // ── Volcano glow ──
+      const vx = wx(VOLCANO_X), vz = wz(VOLCANO_Z);
+      const vg = ctx.createRadialGradient(vx, vz, 1, vx, vz, 16);
+      vg.addColorStop(0,   'rgba(255,80,0,1)');
+      vg.addColorStop(0.35,'rgba(255,40,0,0.55)');
+      vg.addColorStop(1,   'rgba(255,10,0,0)');
+      ctx.fillStyle = vg;
+      ctx.beginPath(); ctx.arc(vx, vz, 16, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ff5500';
+      ctx.beginPath(); ctx.arc(vx, vz, 3.5, 0, Math.PI*2); ctx.fill();
+
+      // ── Dino lairs ──
+      for (const lair of LAIRS) {
+        const st  = statusRef.current(lair.dinoId);
+        const lx  = wx(lair.x);
+        const lz  = wz(lair.y);
+        const col = st === 'captured' ? '#44ff88' : st === 'fled' ? '#ff5555' : DINO_DOT_COLOR[lair.dinoId];
+
+        if (st === 'remaining') {
+          // soft glow halo
+          const halo = ctx.createRadialGradient(lx, lz, 0, lx, lz, 8);
+          halo.addColorStop(0, col + 'bb');
+          halo.addColorStop(1, col + '00');
+          ctx.fillStyle = halo;
+          ctx.beginPath(); ctx.arc(lx, lz, 8, 0, Math.PI*2); ctx.fill();
+        }
+
+        ctx.globalAlpha = st === 'remaining' ? 1 : 0.55;
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(lx, lz, 3.2, 0, Math.PI*2); ctx.fill();
+
+        if (st === 'captured') {
+          ctx.strokeStyle = '#44ff88'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(lx, lz, 5.5, 0, Math.PI*2); ctx.stroke();
+        } else if (st === 'fled') {
+          ctx.strokeStyle = '#ff5555'; ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(lx-3.5, lz-3.5); ctx.lineTo(lx+3.5, lz+3.5);
+          ctx.moveTo(lx+3.5, lz-3.5); ctx.lineTo(lx-3.5, lz+3.5);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // ── Player ──
+      const px = wx(posRef.current.x);
+      const pz = wz(posRef.current.y);
+      // Facing wedge (always visible so the player can navigate)
+      const yaw = yawRef.current;
+      const HALF = 0.30; // half-angle of FOV wedge
+      const LEN  = 13;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath();
+      ctx.moveTo(px, pz);
+      // yaw=0 faces -Z (north on minimap), rotate accordingly
+      const dir = -yaw - Math.PI / 2;
+      ctx.arc(px, pz, LEN, dir - HALF, dir + HALF);
+      ctx.closePath();
+      ctx.fill();
+
+      // Blinking dot
+      if (blinkOn) {
+        // outer ring
+        ctx.strokeStyle = '#aaffaa'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(px, pz, 5.5, 0, Math.PI*2); ctx.stroke();
+        // center
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(px, pz, 3.0, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.beginPath(); ctx.arc(px, pz, 3.0, 0, Math.PI*2); ctx.fill();
+      }
+
+      raf = requestAnimationFrame(draw);
+    }
+
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []); // runs once; posRef/yawRef/statusRef are refs so always fresh
+
+  return (
+    <div style={{ position:'relative' }}>
+      {/* Frame */}
+      <div style={{
+        position:'absolute', inset:-2,
+        borderRadius:10,
+        background:'linear-gradient(135deg,rgba(80,160,60,0.5),rgba(30,80,20,0.3))',
+        border:'2px solid rgba(80,180,60,0.6)',
+        boxShadow:'0 0 12px rgba(60,200,40,0.25),inset 0 0 8px rgba(0,0,0,0.6)',
+        pointerEvents:'none',
+      }}/>
+      <canvas
+        ref={canvasRef}
+        width={MM_SIZE}
+        height={MM_SIZE}
+        style={{ display:'block', borderRadius:8 }}
+      />
+      {/* Label */}
+      <div style={{
+        position:'absolute', top:4, left:0, right:0,
+        textAlign:'center', fontSize:7, fontWeight:900,
+        color:'rgba(150,255,120,0.6)', textTransform:'uppercase', letterSpacing:'0.1em',
+        pointerEvents:'none',
+      }}>Minimap</div>
+      {/* Legend row */}
+      <div style={{
+        position:'absolute', bottom:4, left:4, right:4,
+        display:'flex', justifyContent:'space-between', alignItems:'center',
+        fontSize:6, fontWeight:800, color:'rgba(255,255,255,0.3)',
+        textTransform:'uppercase', letterSpacing:'0.05em',
+        pointerEvents:'none',
+      }}>
+        <span style={{ color:'rgba(255,80,0,0.7)' }}>🌋 Volcano</span>
+        <span style={{ color:'rgba(200,255,200,0.5)' }}>● You</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dino eye heights & colors ────────────────────────────────────────────────
 const DINO_EYE_Y: Record<DinoId, number>     = { velociraptor:2.6, spinosaurus:6.4, pterodactylus:6.2, trex:9.7, giganotosaurus:12.1, hunter:0 };
 const DINO_EYE_COLOR: Record<DinoId, string> = { velociraptor:'#ff1100', spinosaurus:'#ffaa00', pterodactylus:'#ff8800', trex:'#ff0000', giganotosaurus:'#ff5500', hunter:'#ffffff' };
@@ -410,95 +587,78 @@ function ScaryDino({ lair, status, isNearby, isEncounterable, playerPosRef }: {
   );
 }
 
-// ─── Flowing lava field around volcano ───────────────────────────────────────
-// Each river is split into 5 segments with staggered phase → looks like flowing
-function FlowRiver({ segs, rotation, baseColor, phase0 }: {
-  segs: [number,number,number][]; rotation: [number,number,number]; baseColor: string; phase0: number;
-}) {
-  const refs = [
-    useRef<THREE.Mesh>(null!), useRef<THREE.Mesh>(null!), useRef<THREE.Mesh>(null!),
-    useRef<THREE.Mesh>(null!), useRef<THREE.Mesh>(null!),
-  ];
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    refs.forEach((r, i) => {
-      if (r.current) {
-        // Each segment pulses at the same frequency but with increasing phase offset → "flow"
-        (r.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-          1.4 + Math.sin(t * 2.2 + phase0 + i * 0.9) * 1.1;
-      }
-    });
-  });
-  return (
-    <>
-      {segs.map(([x, y, z], i) => (
-        <mesh key={i} ref={refs[i]} position={[x, y, z]} rotation={rotation}>
-          <planeGeometry args={[2.4, 4.5]}/>
-          <meshStandardMaterial color={baseColor} emissive={baseColor} emissiveIntensity={1.8} roughness={0.18}/>
-        </mesh>
-      ))}
-    </>
-  );
-}
+// ─── Lava field around volcano ────────────────────────────────────────────────
+// Uses only module-level materials (MAT_LAVA_*) — never creates materials inside render.
+// "Flowing" effect: each river's material pulses at a different phase, so rivers
+// glow independently giving a sense of movement.
+const R1_SEGS: [number,number,number][] = [[-5,0.14,-4],[-8,0.13,-7],[-11,0.12,-10],[-14,0.11,-13],[-17,0.1,-16]];
+const R2_SEGS: [number,number,number][] = [[-5,0.14,5], [-8,0.13,9], [-11,0.12,13],[-14,0.11,17],[-17,0.1,21]];
+const R3_SEGS: [number,number,number][] = [[7,0.14,1],  [11,0.13,1], [15,0.12,1],  [19,0.11,1],  [23,0.1,1]];
+
+const RING_LIGHTS: [number,number,number,string][] = Array.from({length:8}, (_,i) => {
+  const a = (i/8)*Math.PI*2;
+  return [Math.cos(a)*8, 1.5, Math.sin(a)*8, i%2===0?'#ff3300':'#ff6600'];
+});
 
 function LavaField() {
-  const poolRef = useRef<THREE.Mesh>(null!);
-  const glow1   = useRef<THREE.PointLight>(null!);
-  const glow2   = useRef<THREE.PointLight>(null!);
+  const glow1 = useRef<THREE.PointLight>(null!);
+  const glow2 = useRef<THREE.PointLight>(null!);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    if (poolRef.current) (poolRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 3.0 + Math.sin(t*1.6)*1.2;
-    if (glow1.current)   glow1.current.intensity = 12 + Math.sin(t*2.1)*4;
-    if (glow2.current)   glow2.current.intensity = 8  + Math.sin(t*1.7+1.0)*3;
+    // Pool breathes
+    MAT_LAVA_POOL.emissiveIntensity = 3.0 + Math.sin(t * 1.6) * 1.2;
+    // Each river pulses with different phase — staggered → looks like flow
+    MAT_LAVA_R1.emissiveIntensity   = 1.4 + Math.sin(t * 2.2 + 0.0) * 1.1;
+    MAT_LAVA_R2.emissiveIntensity   = 1.4 + Math.sin(t * 2.2 + 1.2) * 1.1;
+    MAT_LAVA_R3.emissiveIntensity   = 1.4 + Math.sin(t * 2.2 + 2.4) * 1.1;
+    if (glow1.current) glow1.current.intensity = 12 + Math.sin(t * 2.1) * 4;
+    if (glow2.current) glow2.current.intensity =  8 + Math.sin(t * 1.7 + 1.0) * 3;
   });
-
-  // River 1 NW: 5 segments marching away from volcano
-  const r1Segs: [number,number,number][] = [[-5,0.14,-4],[-8,0.13,-7],[-11,0.12,-10],[-14,0.11,-13],[-17,0.1,-16]];
-  // River 2 SW: flows south-west
-  const r2Segs: [number,number,number][] = [[-5,0.14,5],[-8,0.13,9],[-11,0.12,13],[-14,0.11,17],[-17,0.1,21]];
-  // River 3 E: flows east
-  const r3Segs: [number,number,number][] = [[7,0.14,1],[11,0.13,1],[15,0.12,1],[19,0.11,1],[23,0.1,1]];
 
   return (
     <group position={[VOLCANO_X, 0, VOLCANO_Z]}>
       {/* Main lava pool */}
-      <mesh ref={poolRef} position={[0,0.15,0]} rotation={[-Math.PI/2,0,0]}>
+      <mesh position={[0,0.15,0]} rotation={[-Math.PI/2,0,0]} material={MAT_LAVA_POOL}>
         <circleGeometry args={[9,24]}/>
-        <meshStandardMaterial color="#ff3300" emissive="#ff1100" emissiveIntensity={3.0} roughness={0.15}/>
       </mesh>
-      {/* Cooled crust ring around pool */}
+      {/* Cooled crust ring */}
       <mesh position={[0,0.09,0]} rotation={[-Math.PI/2,0,0]} material={MAT_LAVA_CRUST}>
         <ringGeometry args={[9,14,24]}/>
       </mesh>
 
-      {/* Flowing rivers */}
-      <FlowRiver segs={r1Segs} rotation={[-Math.PI/2, 0, Math.PI*0.25]} baseColor="#ff4400" phase0={0.0}/>
-      <FlowRiver segs={r2Segs} rotation={[-Math.PI/2, 0, -Math.PI*0.2]} baseColor="#ff5500" phase0={1.2}/>
-      <FlowRiver segs={r3Segs} rotation={[-Math.PI/2, 0, Math.PI*0.5]}  baseColor="#ff3800" phase0={2.4}/>
+      {/* River 1 — NW */}
+      {R1_SEGS.map(([x,y,z],i) => (
+        <mesh key={`r1${i}`} position={[x,y,z]} rotation={[-Math.PI/2,0,Math.PI*0.25]} material={MAT_LAVA_R1}>
+          <planeGeometry args={[2.4,4.5]}/>
+        </mesh>
+      ))}
+      {R1_SEGS.map(([x,y,z],i) => <mesh key={`c1${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,Math.PI*0.25]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
 
-      {/* River crust borders */}
-      {r1Segs.map(([x,y,z],i) => <mesh key={`c1${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,Math.PI*0.25]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
-      {r2Segs.map(([x,y,z],i) => <mesh key={`c2${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,-Math.PI*0.2]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
-      {r3Segs.map(([x,y,z],i) => <mesh key={`c3${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,Math.PI*0.5]}  material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
+      {/* River 2 — SW */}
+      {R2_SEGS.map(([x,y,z],i) => (
+        <mesh key={`r2${i}`} position={[x,y,z]} rotation={[-Math.PI/2,0,-Math.PI*0.2]} material={MAT_LAVA_R2}>
+          <planeGeometry args={[2.4,4.5]}/>
+        </mesh>
+      ))}
+      {R2_SEGS.map(([x,y,z],i) => <mesh key={`c2${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,-Math.PI*0.2]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
 
-      {/* ── VOLCANO AREA LIGHTING: many strong lights ── */}
-      {/* Core pool glow — very bright */}
-      <pointLight ref={glow1} position={[0, 4, 0]}   intensity={12} color="#ff4400" distance={70} decay={1.2}/>
-      <pointLight ref={glow2} position={[0, 1.5, 0]} intensity={8}  color="#ff6600" distance={50} decay={1.4}/>
-      {/* Ring of lights around pool edge */}
-      {[0,1,2,3,4,5,6,7].map(i => {
-        const a = (i/8)*Math.PI*2;
-        return <pointLight key={i} position={[Math.cos(a)*8, 1.5, Math.sin(a)*8]} intensity={5} color={i%2===0?'#ff3300':'#ff6600'} distance={35} decay={1.8}/>;
-      })}
-      {/* River 1 lights */}
-      {r1Segs.map(([x,_y,z],i) => <pointLight key={`l1${i}`} position={[x,2,z]} intensity={3.5} color="#ff4400" distance={22} decay={2}/>)}
-      {/* River 2 lights */}
-      {r2Segs.map(([x,_y,z],i) => <pointLight key={`l2${i}`} position={[x,2,z]} intensity={3.5} color="#ff5500" distance={22} decay={2}/>)}
-      {/* River 3 lights */}
-      {r3Segs.map(([x,_y,z],i) => <pointLight key={`l3${i}`} position={[x,2,z]} intensity={3.5} color="#ff3800" distance={22} decay={2}/>)}
-      {/* Distant warm sky-fill from eruption */}
-      <pointLight position={[0, 28, 0]} intensity={6} color="#ff2200" distance={120} decay={1.0}/>
+      {/* River 3 — E */}
+      {R3_SEGS.map(([x,y,z],i) => (
+        <mesh key={`r3${i}`} position={[x,y,z]} rotation={[-Math.PI/2,0,Math.PI*0.5]} material={MAT_LAVA_R3}>
+          <planeGeometry args={[2.4,4.5]}/>
+        </mesh>
+      ))}
+      {R3_SEGS.map(([x,y,z],i) => <mesh key={`c3${i}`} position={[x,y-0.04,z]} rotation={[-Math.PI/2,0,Math.PI*0.5]} material={MAT_LAVA_CRUST}><planeGeometry args={[3.8,4.8]}/></mesh>)}
+
+      {/* ── Lights ── */}
+      <pointLight ref={glow1} position={[0,4,0]}   intensity={12} color="#ff4400" distance={70} decay={1.2}/>
+      <pointLight ref={glow2} position={[0,1.5,0]} intensity={8}  color="#ff6600" distance={50} decay={1.4}/>
+      {RING_LIGHTS.map(([x,y,z,col],i) => <pointLight key={`rl${i}`} position={[x,y,z]} intensity={5} color={col} distance={35} decay={1.8}/>)}
+      {R1_SEGS.map(([x,,z],i) => <pointLight key={`ll1${i}`} position={[x,2,z]} intensity={3.5} color="#ff4400" distance={22} decay={2}/>)}
+      {R2_SEGS.map(([x,,z],i) => <pointLight key={`ll2${i}`} position={[x,2,z]} intensity={3.5} color="#ff5500" distance={22} decay={2}/>)}
+      {R3_SEGS.map(([x,,z],i) => <pointLight key={`ll3${i}`} position={[x,2,z]} intensity={3.5} color="#ff3800" distance={22} decay={2}/>)}
+      <pointLight position={[0,28,0]} intensity={6} color="#ff2200" distance={120} decay={1.0}/>
     </group>
   );
 }
@@ -773,7 +933,7 @@ export default function OpenWorld() {
       <div style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:20, padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'flex-end', background:'linear-gradient(0deg,rgba(0,0,0,0.75) 0%,transparent 100%)', pointerEvents:'none' }}>
         <div style={{ background:'rgba(0,0,0,0.7)', border:'1px solid #44aa22', borderRadius:8, padding:'6px 10px' }}>
           <div style={{ fontSize:8, fontWeight:800, color:'#88dd44', textTransform:'uppercase', marginBottom:4 }}>Dinosaurs</div>
-          <div style={{ display:'flex', gap:5, flexWrap:'wrap', maxWidth:160 }}>
+          <div style={{ display:'flex', gap:5, flexWrap:'wrap', maxWidth:180 }}>
             {LAIRS.map(lair => {
               const st=getDinoStatus(lair.dinoId), isNear=nearbyDinos.has(lair.dinoId);
               return (
@@ -788,9 +948,8 @@ export default function OpenWorld() {
             })}
           </div>
         </div>
-        <div style={{ background:'rgba(0,0,0,0.6)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:8, padding:'5px 10px', textAlign:'center', fontSize:9, color:'rgba(255,255,255,0.4)', fontWeight:700 }}>
-          <div>WASD · Move</div><div style={{marginTop:2}}>Right-click · Look</div>
-        </div>
+        {/* Minimap — bottom-right */}
+        <Minimap posRef={posRef} yawRef={yawRef} getDinoStatus={getDinoStatus}/>
       </div>
     </div>
   );
