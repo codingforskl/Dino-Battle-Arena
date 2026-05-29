@@ -100,6 +100,17 @@ const MAT_LAVA_R2     = new THREE.MeshStandardMaterial({ color: '#ff5500', emiss
 const MAT_LAVA_R3     = new THREE.MeshStandardMaterial({ color: '#ff3800', emissive: '#ff1800', emissiveIntensity: 2.0, roughness: 0.18 });
 const MAT_SMOKE       = new THREE.MeshStandardMaterial({ color: '#1a1a22', transparent: true, opacity: 0.25, roughness: 1 });
 
+// ─── Lava-flow-on-volcano constants & per-segment materials ───────────────────
+const CONE_HALF_ANGLE = Math.atan2(18, 30);          // ≈ 31° from vertical
+const FLOW_ROT_Z      = Math.PI + CONE_HALF_ANGLE;   // rotates box Y-axis onto down-slope
+const FLOW_SLOPE_LEN  = Math.sqrt(18 * 18 + 30 * 30); // ≈ 34.99 total slope length
+const FLOW_N          = 9;                            // segments per flow
+const FLOW_SEG_LEN    = FLOW_SLOPE_LEN / FLOW_N + 0.4; // segment length with slight overlap
+// One material per segment-index so wave animation sweeps top→bottom
+const FLOW_SEG_MATS: THREE.MeshStandardMaterial[] = Array.from({ length: FLOW_N }, () =>
+  new THREE.MeshStandardMaterial({ color: '#ff4400', emissive: '#ff2200', emissiveIntensity: 2.0, roughness: 0.1, toneMapped: false })
+);
+
 // ─── Tree ─────────────────────────────────────────────────────────────────────
 function Tree({ x, z, h, dark }: TreeDef) {
   const tH = h * 0.42, cS = tH * 0.7;
@@ -663,27 +674,132 @@ function LavaField() {
   );
 }
 
-// ─── Volcano ──────────────────────────────────────────────────────────────────
+// ─── Volcano (detailed) ───────────────────────────────────────────────────────
 function VolcanoMesh() {
-  const craterRef = useRef<THREE.Mesh>(null!);
-  const smokeRef  = useRef<THREE.Mesh>(null!);
+  const craterRef     = useRef<THREE.Mesh>(null!);
+  const smoke1Ref     = useRef<THREE.Mesh>(null!);
+  const smoke2Ref     = useRef<THREE.Mesh>(null!);
+  const smoke3Ref     = useRef<THREE.Mesh>(null!);
+  const craterLightRef= useRef<THREE.PointLight>(null!);
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    if (craterRef.current) (craterRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 3 + Math.sin(t*2.1)*1.3;
-    if (smokeRef.current)  { smokeRef.current.position.y = 31.5 + Math.sin(t*0.6)*0.5; smokeRef.current.scale.x = 1+Math.sin(t*0.4)*0.1; }
+    if (craterRef.current)
+      (craterRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 3.2 + Math.sin(t * 2.1) * 1.8;
+    if (smoke1Ref.current) {
+      smoke1Ref.current.position.y = 32.5 + Math.sin(t * 0.58) * 0.7;
+      smoke1Ref.current.scale.setScalar(1 + Math.sin(t * 0.38) * 0.13);
+    }
+    if (smoke2Ref.current) {
+      smoke2Ref.current.position.set(2 + Math.sin(t * 0.22) * 0.4, 36 + Math.sin(t * 0.44 + 1.0) * 0.6, 0.8);
+      smoke2Ref.current.scale.setScalar(1 + Math.sin(t * 0.28 + 0.9) * 0.16);
+      (smoke2Ref.current.material as THREE.MeshStandardMaterial).opacity = 0.18 + Math.sin(t * 0.65) * 0.06;
+    }
+    if (smoke3Ref.current) {
+      smoke3Ref.current.position.set(-1.5, 39 + Math.sin(t * 0.38 + 2.1) * 0.5, 1.2);
+      smoke3Ref.current.scale.setScalar(1 + Math.sin(t * 0.3 + 1.6) * 0.12);
+    }
+    if (craterLightRef.current)
+      craterLightRef.current.intensity = 18 + Math.sin(t * 2.4) * 7;
   });
+
   return (
-    <group position={[VOLCANO_X,0,VOLCANO_Z]}>
-      <mesh position={[0,15,0]}><coneGeometry args={[18,30,12]}/><meshStandardMaterial color="#0d0502" roughness={0.98}/></mesh>
-      <mesh position={[0,30,0]}><torusGeometry args={[4.5,1.2,8,14]}/><meshStandardMaterial color="#1a0704" roughness={0.95}/></mesh>
-      <mesh ref={craterRef} position={[0,30.4,0]} rotation={[-Math.PI/2,0,0]}>
-        <circleGeometry args={[3.5,12]}/>
-        <meshStandardMaterial color="#ff4400" emissive="#ff2200" emissiveIntensity={3} roughness={0.2}/>
+    <group position={[VOLCANO_X, 0, VOLCANO_Z]}>
+      {/* Main cone */}
+      <mesh position={[0, 15, 0]}><coneGeometry args={[18, 30, 16]}/><meshStandardMaterial color="#0d0502" roughness={0.98}/></mesh>
+
+      {/* Layered rock bands — give the cone visible strata */}
+      <mesh position={[0, 4, 0]}><coneGeometry args={[17.4, 6, 14]}/><meshStandardMaterial color="#150703" roughness={0.97}/></mesh>
+      <mesh position={[0, 10, 0]}><coneGeometry args={[14.2, 7, 13]}/><meshStandardMaterial color="#0e0401" roughness={0.96}/></mesh>
+      <mesh position={[0, 17, 0]}><coneGeometry args={[10.0, 8, 12]}/><meshStandardMaterial color="#120503" roughness={0.97}/></mesh>
+      <mesh position={[0, 23, 0]}><coneGeometry args={[6.0, 7, 11]}/><meshStandardMaterial color="#0f0402" roughness={0.98}/></mesh>
+      <mesh position={[0, 27.5, 0]}><coneGeometry args={[3.8, 5, 10]}/><meshStandardMaterial color="#160604" roughness={0.97}/></mesh>
+
+      {/* Glowing lava-crack veins on the cone surface */}
+      {[0, 1, 2, 3, 4, 5].map(i => {
+        const a  = (i / 6) * Math.PI * 2 + 0.4;
+        const tMid = 0.45 + (i % 3) * 0.1;
+        const r = 18 * tMid, h = 30 * (1 - tMid);
+        return (
+          <mesh key={`vein${i}`} position={[Math.cos(a) * r, h, Math.sin(a) * r]}>
+            <sphereGeometry args={[0.55, 5, 5]}/>
+            <meshStandardMaterial color="#ff3300" emissive="#ff1100" emissiveIntensity={2.5 + (i % 3) * 0.5} roughness={0.1} toneMapped={false}/>
+          </mesh>
+        );
+      })}
+
+      {/* Crater rim */}
+      <mesh position={[0, 30, 0]}><torusGeometry args={[4.5, 1.5, 9, 18]}/><meshStandardMaterial color="#1a0704" roughness={0.94}/></mesh>
+      {/* Inner rim glow */}
+      <mesh position={[0, 30.4, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <ringGeometry args={[3.6, 4.5, 16]}/>
+        <meshStandardMaterial color="#ff2200" emissive="#ff0800" emissiveIntensity={1.8} roughness={0.35}/>
       </mesh>
-      <mesh ref={smokeRef} position={[0,32,0]} material={MAT_SMOKE}><sphereGeometry args={[3,8,8]}/></mesh>
-      {[0,1,2,3,4].map(i => {
-        const a = (i/5)*Math.PI*2, r = 14+Math.sin(i)*2;
-        return <mesh key={i} position={[Math.cos(a)*r,0.6,Math.sin(a)*r]} material={MAT_ROCK}><sphereGeometry args={[1.2+Math.cos(i)*0.5,6,6]}/></mesh>;
+      {/* Crater lava pool */}
+      <mesh ref={craterRef} position={[0, 30.7, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <circleGeometry args={[3.5, 16]}/>
+        <meshStandardMaterial color="#ff4400" emissive="#ff2200" emissiveIntensity={3.5} roughness={0.15}/>
+      </mesh>
+
+      {/* Base rock formations — dense ring */}
+      {[0,1,2,3,4,5,6,7,8,9].map(i => {
+        const a = (i / 10) * Math.PI * 2, r = 14 + Math.sin(i * 1.9) * 2.5;
+        const sc = 1.1 + Math.cos(i * 2.1) * 0.45;
+        return <mesh key={`br${i}`} position={[Math.cos(a)*r, 0.7 + Math.sin(i)*0.5, Math.sin(a)*r]} material={MAT_ROCK}><sphereGeometry args={[1.3*sc,6,6]}/></mesh>;
+      })}
+      {/* Mid-slope outcroppings */}
+      {[0,1,2,3,4,5].map(i => {
+        const a = (i / 6) * Math.PI * 2 + 0.55;
+        const tMid = 0.25 + (i % 3) * 0.1;
+        const r = 18 * tMid + 0.8, h = 30 * (1 - tMid) - 1;
+        return <mesh key={`mr${i}`} position={[Math.cos(a)*r, h, Math.sin(a)*r]} material={MAT_ROCK}><sphereGeometry args={[0.8 + Math.sin(i)*0.25, 5, 5]}/></mesh>;
+      })}
+
+      {/* Smoke plumes */}
+      <mesh ref={smoke1Ref} position={[0, 32.5, 0]} material={MAT_SMOKE}><sphereGeometry args={[3.4, 8, 8]}/></mesh>
+      <mesh ref={smoke2Ref} position={[2, 36, 0.8]}>
+        <sphereGeometry args={[4.5, 7, 7]}/>
+        <meshStandardMaterial color="#111118" transparent opacity={0.2} roughness={1}/>
+      </mesh>
+      <mesh ref={smoke3Ref} position={[-1.5, 39, 1.2]}>
+        <sphereGeometry args={[5.5, 7, 7]}/>
+        <meshStandardMaterial color="#0e0e15" transparent opacity={0.15} roughness={1}/>
+      </mesh>
+
+      {/* Crater point light — pulses with lava */}
+      <pointLight ref={craterLightRef} position={[0, 33, 0]} intensity={18} color="#ff2200" distance={100} decay={1.1}/>
+    </group>
+  );
+}
+
+// ─── Lava flow animation driver (updates per-segment materials) ────────────────
+function LavaFlowAnimator() {
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    for (let i = 0; i < FLOW_N; i++) {
+      // Wave travels top (i=0) → bottom (i=FLOW_N-1) over time
+      FLOW_SEG_MATS[i].emissiveIntensity = 1.3 + Math.sin(t * 2.6 - i * 0.85) * 1.4;
+    }
+  });
+  return null;
+}
+
+// ─── Single lava flow channel down the cone ───────────────────────────────────
+function LavaFlowOnVolcano({ angle }: { angle: number }) {
+  return (
+    <group position={[VOLCANO_X, 0, VOLCANO_Z]} rotation={[0, angle, 0]}>
+      {Array.from({ length: FLOW_N }, (_, i) => {
+        const tMid = (i + 0.5) / FLOW_N;
+        // Position on the cone surface in the theta=0 local frame:
+        // x = radial distance outward, y = height
+        const lx = 18 * tMid;
+        const ly = 30 * (1 - tMid);
+        return (
+          <mesh key={i} position={[lx, ly, 0]} rotation={[0, 0, FLOW_ROT_Z]} material={FLOW_SEG_MATS[i]}>
+            {/* args: [thickness, length-along-slope, width-around-cone] */}
+            <boxGeometry args={[0.22, FLOW_SEG_LEN, 1.5]}/>
+          </mesh>
+        );
       })}
     </group>
   );
@@ -699,22 +815,53 @@ function CapturedMarker({ x, z, status }: { x: number; z: number; status: 'captu
   );
 }
 
-// ─── FPS Camera ───────────────────────────────────────────────────────────────
+// ─── FPS Camera + Flashlight ──────────────────────────────────────────────────
 function FPSCamera({ posRef, yawRef, pitchRef, movingRef }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
   yawRef: React.MutableRefObject<number>;
   pitchRef: React.MutableRefObject<number>;
   movingRef: React.MutableRefObject<boolean>;
 }) {
-  const { camera } = useThree();
-  useEffect(() => { camera.rotation.order = 'YXZ'; }, [camera]);
+  const { camera, scene } = useThree();
+  const flashRef   = useRef<THREE.SpotLight>(null!);
+  const targetObj  = useRef(new THREE.Object3D());
+
+  useEffect(() => {
+    camera.rotation.order = 'YXZ';
+    scene.add(targetObj.current);
+    return () => { scene.remove(targetObj.current); };
+  }, [camera, scene]);
+
   useFrame(({ clock }) => {
-    const bob = movingRef.current ? Math.sin(clock.getElapsedTime()*8)*0.07 : 0;
-    camera.position.set(posRef.current.x, EYE_HEIGHT+bob, posRef.current.y);
+    const bob = movingRef.current ? Math.sin(clock.getElapsedTime() * 8) * 0.07 : 0;
+    const px = posRef.current.x, pz = EYE_HEIGHT + bob, py = posRef.current.y;
+    camera.position.set(px, pz, py);
     camera.rotation.y = yawRef.current;
     camera.rotation.x = pitchRef.current;
+
+    if (flashRef.current) {
+      const yaw = yawRef.current, pitch = pitchRef.current;
+      const dx = -Math.sin(yaw) * Math.cos(pitch);
+      const dy =  Math.sin(pitch);
+      const dz = -Math.cos(yaw) * Math.cos(pitch);
+      flashRef.current.position.set(px, pz, py);
+      targetObj.current.position.set(px + dx * 22, pz + dy * 22, py + dz * 22);
+      flashRef.current.target = targetObj.current;
+    }
   });
-  return null;
+
+  return (
+    <spotLight
+      ref={flashRef}
+      intensity={55}
+      angle={Math.PI / 6.5}
+      penumbra={0.45}
+      distance={58}
+      decay={1.7}
+      color="#ddeeff"
+      castShadow={false}
+    />
+  );
 }
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
@@ -750,6 +897,12 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
       })}
       <LavaField/>
       <VolcanoMesh/>
+      <LavaFlowAnimator/>
+      <LavaFlowOnVolcano angle={0}/>
+      <LavaFlowOnVolcano angle={Math.PI * 0.4}/>
+      <LavaFlowOnVolcano angle={Math.PI * 0.8}/>
+      <LavaFlowOnVolcano angle={Math.PI * 1.25}/>
+      <LavaFlowOnVolcano angle={Math.PI * 1.7}/>
       <FPSCamera posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef}/>
     </>
   );
@@ -823,14 +976,14 @@ export default function OpenWorld() {
   }, [getDinoStatus]);
 
   useEffect(() => {
-    const onDown = (e: MouseEvent) => { if (e.button!==2) return; isDraggingRef.current=true; lastMouseRef.current={x:e.clientX,y:e.clientY}; setIsDragging(true); };
+    const onDown = (e: MouseEvent) => { if (e.button!==0 && e.button!==2) return; isDraggingRef.current=true; lastMouseRef.current={x:e.clientX,y:e.clientY}; setIsDragging(true); };
     const onMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
       yawRef.current  -= (e.clientX-lastMouseRef.current.x)*MOUSE_SENS;
       pitchRef.current = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, pitchRef.current-(e.clientY-lastMouseRef.current.y)*MOUSE_SENS));
       lastMouseRef.current = { x:e.clientX, y:e.clientY };
     };
-    const onUp   = (e: MouseEvent) => { if (e.button!==2) return; isDraggingRef.current=false; setIsDragging(false); };
+    const onUp   = (e: MouseEvent) => { if (e.button!==0 && e.button!==2) return; isDraggingRef.current=false; setIsDragging(false); };
     const noCtx  = (e: Event) => e.preventDefault();
     window.addEventListener('mousedown',   onDown);
     window.addEventListener('mousemove',   onMove);
@@ -870,7 +1023,7 @@ export default function OpenWorld() {
       <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:20, padding:'10px 14px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', background:'linear-gradient(180deg,rgba(0,0,0,0.8) 0%,transparent 100%)', pointerEvents:'none' }}>
         <div>
           <div style={{ fontWeight:900, textTransform:'uppercase', letterSpacing:'0.1em', color:'#88dd44', fontSize:14, textShadow:'0 0 10px #44aa22' }}>🌿 WILD HUNT</div>
-          <div style={{ color:'#557733', fontSize:9, fontWeight:700, marginTop:2 }}>WASD to move · Right-click drag to look</div>
+          <div style={{ color:'#557733', fontSize:9, fontWeight:700, marginTop:2 }}>WASD to move · Click &amp; drag to look · 🔦 Flashlight active</div>
         </div>
         <div style={{ background:'rgba(0,0,0,0.75)', border:'2px solid #44aa22', borderRadius:10, padding:'5px 12px', textAlign:'center' }}>
           <div style={{ color:'#88dd44', fontSize:9, fontWeight:800, textTransform:'uppercase' }}>Captured</div>
