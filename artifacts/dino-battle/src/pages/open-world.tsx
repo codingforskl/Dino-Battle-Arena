@@ -32,24 +32,13 @@ const WORLD_MAX        = 295;
 
 // Hills: each lair sits atop a hill; extra hills for terrain variation
 interface HillDef { x: number; z: number; rx: number; rz: number; h: number; }
+// Only 5 hills — one under each lair so dinos stand elevated
 const HILLS: HillDef[] = [
-  { x: 42,  z: 58,  rx: 28, rz: 22, h: 8  },
-  { x: 50,  z: 258, rx: 32, rz: 24, h: 10 },
-  { x: 52,  z: 148, rx: 24, rz: 20, h: 7  },
-  { x: 262, z: 50,  rx: 36, rz: 28, h: 13 },
-  { x: 255, z: 260, rx: 34, rz: 30, h: 12 },
-  { x: 112, z: 65,  rx: 22, rz: 18, h: 5  },
-  { x: 198, z: 88,  rx: 26, rz: 20, h: 6  },
-  { x: 88,  z: 212, rx: 20, rz: 24, h: 5  },
-  { x: 242, z: 168, rx: 28, rz: 22, h: 7  },
-  { x: 158, z: 40,  rx: 22, rz: 18, h: 5  },
-  { x: 38,  z: 185, rx: 24, rz: 20, h: 6  },
-  { x: 278, z: 212, rx: 30, rz: 24, h: 8  },
-  { x: 182, z: 278, rx: 22, rz: 20, h: 6  },
-  { x: 125, z: 265, rx: 20, rz: 18, h: 5  },
-  { x: 285, z: 125, rx: 24, rz: 22, h: 6  },
-  { x: 68,  z: 110, rx: 18, rz: 16, h: 4  },
-  { x: 220, z: 220, rx: 20, rz: 18, h: 5  },
+  { x: 42,  z: 58,  rx: 26, rz: 20, h: 7  },
+  { x: 50,  z: 258, rx: 30, rz: 22, h: 9  },
+  { x: 52,  z: 148, rx: 22, rz: 18, h: 6  },
+  { x: 262, z: 50,  rx: 34, rz: 26, h: 12 },
+  { x: 255, z: 260, rx: 32, rz: 28, h: 11 },
 ];
 function getTerrainHeight(x: number, z: number): number {
   let h = 0;
@@ -90,6 +79,18 @@ const FIREFLY_DEFS: FireflyDef[] = (() => {
   return Array.from({ length: 250 }, () => ({ x: 5 + rng() * 288, z: 5 + rng() * 288, y: 1.2 + rng() * 5, phase: rng() * Math.PI * 2, speed: 0.4 + rng() * 0.8 }));
 })();
 
+interface BushDef { x: number; z: number; s: number; }
+const BUSHES: BushDef[] = (() => {
+  const rng = mkRng(131); const out: BushDef[] = [];
+  for (let i = 0; i < 400; i++) {
+    const x = 5 + rng() * 288, z = 5 + rng() * 288;
+    if (dist(x, z, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R + 10) continue;
+    if (LAIRS.some(l => dist(x, z, l.x, l.y) < 10)) continue;
+    out.push({ x, z, s: 0.6 + rng() * 1.3 });
+  }
+  return out;
+})();
+
 // ─── Module-level shared materials (never recreated) ─────────────────────────
 const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#5c3414' });
 const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#7e4a22' });
@@ -97,6 +98,8 @@ const MAT_LEAF_D   = new THREE.MeshLambertMaterial({ color: '#1e5a14' });
 const MAT_LEAF_L   = new THREE.MeshLambertMaterial({ color: '#2e7224' });
 const MAT_LEAF_M   = new THREE.MeshLambertMaterial({ color: '#266418' });
 const MAT_FERN     = new THREE.MeshLambertMaterial({ color: '#163c10' });
+const MAT_BUSH_D   = new THREE.MeshLambertMaterial({ color: '#152e10' });
+const MAT_BUSH_L   = new THREE.MeshLambertMaterial({ color: '#1e4018' });
 const MAT_GROUND   = new THREE.MeshLambertMaterial({ color: '#142810' });
 const MAT_HILL     = new THREE.MeshLambertMaterial({ color: '#09150a' });
 const MAT_FOG      = new THREE.MeshBasicMaterial({ color: '#1a2e1a', transparent: true, opacity: 0.2, depthWrite: false });
@@ -433,7 +436,7 @@ function GiganotosaurusBody() {
 
 // ─── Minimap ──────────────────────────────────────────────────────────────────
 const MM_SIZE  = 164;   // canvas pixels
-const MM_WORLD = 158;   // world units (3 … 155 → ~158)
+const MM_WORLD = WORLD_MAX + 8; // world units with small border
 
 const DINO_DOT_COLOR: Record<DinoId, string> = {
   velociraptor:   '#ff5555',
@@ -721,6 +724,18 @@ function Hill({ x, z, rx, rz, h }: HillDef) {
     <mesh position={[x, 0, z]} scale={[rx, h, rz]} material={MAT_HILL}>
       <sphereGeometry args={[1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]}/>
     </mesh>
+  );
+}
+
+// ─── Bush cluster ─────────────────────────────────────────────────────────────
+function Bush({ x, z, s }: BushDef) {
+  const ty = getTerrainHeight(x, z);
+  return (
+    <group position={[x, ty, z]}>
+      <mesh position={[0,       s*0.55, 0      ]} material={MAT_BUSH_D}><sphereGeometry args={[s*0.9, 6, 5]}/></mesh>
+      <mesh position={[s*0.55,  s*0.40, s*0.3  ]} material={MAT_BUSH_L}><sphereGeometry args={[s*0.65,5, 4]}/></mesh>
+      <mesh position={[-s*0.45, s*0.35, -s*0.35]} material={MAT_BUSH_D}><sphereGeometry args={[s*0.70,5, 4]}/></mesh>
+    </group>
   );
 }
 
@@ -1035,6 +1050,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
       <mesh position={[150,0,150]} rotation={[-Math.PI/2,0,0]} material={MAT_GROUND}><planeGeometry args={[340,340]}/></mesh>
       <GroundFog/>
       {HILLS.map((h,i) => <Hill key={i} {...h}/>)}
+      {BUSHES.map((b,i) => <Bush key={i} {...b}/>)}
       {WORLD_TREES.map((t,i) => <Tree key={i} {...t}/>)}
       {FIREFLY_DEFS.map((f,i) => <Firefly key={i} {...f}/>)}
       {LAIRS.map(lair => (
