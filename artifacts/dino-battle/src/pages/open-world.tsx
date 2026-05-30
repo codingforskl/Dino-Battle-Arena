@@ -91,6 +91,44 @@ const BUSHES: BushDef[] = (() => {
   return out;
 })();
 
+interface RockDef  { x: number; z: number; s: number; rot: number; sy: number; }
+const ROCKS: RockDef[] = (() => {
+  const rng = mkRng(73); const out: RockDef[] = [];
+  for (let i = 0; i < 130; i++) {
+    const x = 5 + rng() * 288, z = 5 + rng() * 288;
+    if (dist(x, z, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R + 14) continue;
+    if (LAIRS.some(l => dist(x, z, l.x, l.y) < 9)) continue;
+    out.push({ x, z, s: 0.5 + rng() * 2.2, rot: rng() * Math.PI * 2, sy: 0.45 + rng() * 0.55 });
+  }
+  return out;
+})();
+
+interface GrassDef { x: number; z: number; h: number; rot: number; }
+const GRASS_TUFTS: GrassDef[] = (() => {
+  const rng = mkRng(19); const out: GrassDef[] = [];
+  for (let i = 0; i < 500; i++) {
+    const x = 5 + rng() * 288, z = 5 + rng() * 288;
+    if (dist(x, z, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R + 6) continue;
+    out.push({ x, z, h: 0.28 + rng() * 0.9, rot: rng() * Math.PI });
+  }
+  return out;
+})();
+
+interface PatchDef { x: number; z: number; rx: number; rz: number; mi: 0|1|2; }
+const GROUND_PATCHES: PatchDef[] = (() => {
+  const rng = mkRng(51); const out: PatchDef[] = [];
+  for (let i = 0; i < 55; i++)
+    out.push({ x: rng()*294, z: rng()*294, rx: 10+rng()*26, rz: 7+rng()*20, mi: Math.floor(rng()*3) as 0|1|2 });
+  return out;
+})();
+
+const WATER_POOLS = [
+  { x: 88,  z: 196, rx: 13, rz: 8 },
+  { x: 218, z: 118, rx: 10, rz: 6 },
+  { x: 72,  z: 115, rx: 8,  rz: 5 },
+  { x: 200, z: 244, rx: 12, rz: 7 },
+];
+
 // ─── Module-level shared materials (never recreated) ─────────────────────────
 const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#5c3414' });
 const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#7e4a22' });
@@ -100,6 +138,14 @@ const MAT_LEAF_M   = new THREE.MeshLambertMaterial({ color: '#266418' });
 const MAT_FERN     = new THREE.MeshLambertMaterial({ color: '#163c10' });
 const MAT_BUSH_D   = new THREE.MeshLambertMaterial({ color: '#152e10' });
 const MAT_BUSH_L   = new THREE.MeshLambertMaterial({ color: '#1e4018' });
+const MAT_GRASS_A  = new THREE.MeshLambertMaterial({ color: '#2d5216', side: THREE.DoubleSide });
+const MAT_GRASS_B  = new THREE.MeshLambertMaterial({ color: '#1e400e', side: THREE.DoubleSide });
+const MAT_ROCK_B   = new THREE.MeshLambertMaterial({ color: '#1e1c14' });
+const MAT_ROCK_C   = new THREE.MeshLambertMaterial({ color: '#2a241c' });
+const MAT_WATER    = new THREE.MeshStandardMaterial({ color: '#16283a', roughness: 0.04, metalness: 0.9, transparent: true, opacity: 0.82 });
+const MAT_PATCH_D  = new THREE.MeshBasicMaterial({ color: '#0c180a', transparent: true, opacity: 0.52, depthWrite: false });
+const MAT_PATCH_L  = new THREE.MeshBasicMaterial({ color: '#1c3612', transparent: true, opacity: 0.42, depthWrite: false });
+const MAT_PATCH_M  = new THREE.MeshBasicMaterial({ color: '#2c1a08', transparent: true, opacity: 0.38, depthWrite: false });
 const MAT_GROUND   = new THREE.MeshLambertMaterial({ color: '#142810' });
 const MAT_HILL     = new THREE.MeshLambertMaterial({ color: '#09150a' });
 const MAT_FOG      = new THREE.MeshBasicMaterial({ color: '#1a2e1a', transparent: true, opacity: 0.2, depthWrite: false });
@@ -739,6 +785,53 @@ function Bush({ x, z, s }: BushDef) {
   );
 }
 
+// ─── Rock cluster ─────────────────────────────────────────────────────────────
+function Rock({ x, z, s, rot, sy }: RockDef) {
+  const ty = getTerrainHeight(x, z);
+  return (
+    <group position={[x, ty, z]} rotation={[0, rot, 0]}>
+      <mesh scale={[s, s * sy, s * 0.88]} material={MAT_ROCK}><sphereGeometry args={[1, 7, 6]}/></mesh>
+      <mesh position={[s*0.54, -s*0.07, s*0.38]} scale={[s*0.48, s*sy*0.5, s*0.46]} material={MAT_ROCK_B}><sphereGeometry args={[1, 6, 5]}/></mesh>
+      <mesh position={[-s*0.4, -s*0.09, -s*0.44]} scale={[s*0.38, s*sy*0.44, s*0.42]} material={MAT_ROCK_C}><sphereGeometry args={[1, 6, 5]}/></mesh>
+    </group>
+  );
+}
+
+// ─── Grass tuft (crossed billboard planes) ────────────────────────────────────
+function GrassTuft({ x, z, h, rot }: GrassDef) {
+  const ty = getTerrainHeight(x, z);
+  const mat = h > 0.65 ? MAT_GRASS_A : MAT_GRASS_B;
+  return (
+    <group position={[x, ty + h * 0.5, z]}>
+      <mesh rotation={[0, rot,                0]} material={mat}><planeGeometry args={[h * 0.6, h]}/></mesh>
+      <mesh rotation={[0, rot + Math.PI / 2, 0]} material={mat}><planeGeometry args={[h * 0.6, h]}/></mesh>
+    </group>
+  );
+}
+
+// ─── Ground colour patches ─────────────────────────────────────────────────────
+const PATCH_MATS = [MAT_PATCH_D, MAT_PATCH_L, MAT_PATCH_M] as const;
+function GroundPatch({ x, z, rx, rz, mi }: PatchDef) {
+  return (
+    <mesh position={[x, 0.02, z]} rotation={[-Math.PI / 2, 0, 0]} scale={[rx, rz, 1]} material={PATCH_MATS[mi]}>
+      <circleGeometry args={[1, 14]}/>
+    </mesh>
+  );
+}
+
+// ─── Water pool ───────────────────────────────────────────────────────────────
+function WaterPool({ x, z, rx, rz }: { x:number; z:number; rx:number; rz:number }) {
+  const ref = useRef<THREE.Mesh>(null!);
+  useFrame(({ clock }) => {
+    if (ref.current) (ref.current.material as THREE.MeshStandardMaterial).roughness = 0.03 + Math.sin(clock.getElapsedTime() * 0.35) * 0.025;
+  });
+  return (
+    <mesh ref={ref} position={[x, 0.06, z]} rotation={[-Math.PI / 2, 0, 0]} scale={[rx, rz, 1]} material={MAT_WATER}>
+      <circleGeometry args={[1, 22]}/>
+    </mesh>
+  );
+}
+
 // ─── Volcano (large realistic) ────────────────────────────────────────────────
 function VolcanoMesh() {
   const craterRef      = useRef<THREE.Mesh>(null!);
@@ -1045,12 +1138,16 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
 }) {
   return (
     <>
-      <fog attach="fog" args={['#060c06',2,95]}/>
+      <fog attach="fog" args={['#060c06',3,115]}/>
       <DayNightCycle/>
       <mesh position={[150,0,150]} rotation={[-Math.PI/2,0,0]} material={MAT_GROUND}><planeGeometry args={[340,340]}/></mesh>
+      {GROUND_PATCHES.map((p,i) => <GroundPatch key={i} {...p}/>)}
+      {WATER_POOLS.map((w,i) => <WaterPool key={i} {...w}/>)}
       <GroundFog/>
       {HILLS.map((h,i) => <Hill key={i} {...h}/>)}
+      {ROCKS.map((r,i) => <Rock key={i} {...r}/>)}
       {BUSHES.map((b,i) => <Bush key={i} {...b}/>)}
+      {GRASS_TUFTS.map((g,i) => <GrassTuft key={i} {...g}/>)}
       {WORLD_TREES.map((t,i) => <Tree key={i} {...t}/>)}
       {FIREFLY_DEFS.map((f,i) => <Firefly key={i} {...f}/>)}
       {LAIRS.map(lair => (
