@@ -129,6 +129,13 @@ const WATER_POOLS = [
   { x: 200, z: 244, rx: 12, rz: 7 },
 ];
 
+// ─── Dino wandering state (mutable, updated each tick) ────────────────────────
+const WANDER_R = 14;
+interface WanderState { x:number; z:number; tx:number; tz:number; timer:number; }
+const DINO_WANDER: Record<string, WanderState> = Object.fromEntries(
+  LAIRS.map(l => [l.dinoId, { x:l.x, z:l.y, tx:l.x, tz:l.y, timer: Math.floor(Math.random()*80) }])
+);
+
 // ─── Module-level shared materials (never recreated) ─────────────────────────
 const MAT_TRUNK_D  = new THREE.MeshLambertMaterial({ color: '#5c3414' });
 const MAT_TRUNK_L  = new THREE.MeshLambertMaterial({ color: '#7e4a22' });
@@ -548,8 +555,12 @@ function Minimap({ posRef, yawRef, getDinoStatus }: {
       // ── Dino lairs ──
       for (const lair of LAIRS) {
         const st  = statusRef.current(lair.dinoId);
-        const lx  = wx(lair.x);
-        const lz  = wz(lair.y);
+        const w   = DINO_WANDER[lair.dinoId];
+        // Show live wander position for remaining dinos, lair position for others
+        const dotX = st === 'remaining' ? w.x : lair.x;
+        const dotZ = st === 'remaining' ? w.z : lair.y;
+        const lx  = wx(dotX);
+        const lz  = wz(dotZ);
         const col = st === 'captured' ? '#44ff88' : st === 'fled' ? '#ff5555' : DINO_DOT_COLOR[lair.dinoId];
 
         if (st === 'remaining') {
@@ -664,13 +675,23 @@ function ScaryDino({ lair, status, isNearby, isEncounterable, playerPosRef }: {
 }) {
   const groupRef  = useRef<THREE.Group>(null!);
   const breathRef = useRef<THREE.Group>(null!);
+  const beamRef   = useRef<THREE.Mesh>(null!);
   useFrame(({ clock }) => {
-    const pp = playerPosRef.current;
-    const angle = Math.atan2(pp.x - lair.x, pp.y - lair.y);
-    if (groupRef.current && status === 'remaining')
+    const t = clock.getElapsedTime();
+    const w = DINO_WANDER[lair.dinoId];
+    if (groupRef.current && status === 'remaining') {
+      const pp = playerPosRef.current;
+      const angle = Math.atan2(pp.x - w.x, pp.y - w.z);
       groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, angle, isNearby ? 0.055 : 0.009);
+      groupRef.current.position.set(w.x, getTerrainHeight(w.x, w.z), w.z);
+    }
     if (breathRef.current)
-      breathRef.current.scale.y = 1 + Math.sin(clock.getElapsedTime()*0.85)*0.022;
+      breathRef.current.scale.y = 1 + Math.sin(t * 0.85) * 0.022;
+    if (beamRef.current) {
+      (beamRef.current.material as THREE.MeshBasicMaterial).opacity =
+        isEncounterable ? 0.22 + Math.sin(t * 5.5) * 0.14
+                        : 0.09 + Math.sin(t * 1.8) * 0.05;
+    }
   });
   if (status !== 'remaining') return null;
   const eyeH = DINO_EYE_Y[lair.dinoId] ?? 10;
@@ -684,6 +705,13 @@ function ScaryDino({ lair, status, isNearby, isEncounterable, playerPosRef }: {
     <group ref={groupRef} position={[lair.x, getTerrainHeight(lair.x, lair.y), lair.y]}>
       <group ref={breathRef}>{Body}</group>
       <pointLight position={[0,eyeH,2.5]} intensity={isEncounterable?6:isNearby?3.5:1.4} color={eyeC} distance={isNearby?38:22} decay={2}/>
+      {/* Presence beam — tall glowing column, visible through trees when nearby */}
+      {isNearby && (
+        <mesh ref={beamRef} position={[0, 28, 0]}>
+          <cylinderGeometry args={[0.25, 2.2, 56, 7]}/>
+          <meshBasicMaterial color={eyeC} transparent opacity={0.12} depthWrite={false}/>
+        </mesh>
+      )}
     </group>
   );
 }
@@ -1005,13 +1033,14 @@ function CapturedMarker({ x, z, status }: { x: number; z: number; status: 'captu
 }
 
 // ─── FPS Camera + Flashlight ──────────────────────────────────────────────────
-function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef, jumpYRef }: {
+function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef, jumpYRef, sprintRef }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
   yawRef: React.MutableRefObject<number>;
   pitchRef: React.MutableRefObject<number>;
   movingRef: React.MutableRefObject<boolean>;
   flashlightOnRef: React.MutableRefObject<boolean>;
   jumpYRef: React.MutableRefObject<number>;
+  sprintRef: React.MutableRefObject<boolean>;
 }) {
   const { camera, scene } = useThree();
   const flashRef   = useRef<THREE.SpotLight>(null!);
@@ -1029,6 +1058,14 @@ function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef, jumpY
     camera.position.set(px, pz, py);
     camera.rotation.y = yawRef.current;
     camera.rotation.x = pitchRef.current;
+
+    // ── FOV pulse: widens when sprinting, narrows on landing ──
+    const targetFov = sprintRef.current ? 91 : 78;
+    const fovSpeed  = sprintRef.current ? 0.12 : 0.08;
+    if (Math.abs((camera as THREE.PerspectiveCamera).fov - targetFov) > 0.05) {
+      (camera as THREE.PerspectiveCamera).fov = THREE.MathUtils.lerp((camera as THREE.PerspectiveCamera).fov, targetFov, fovSpeed);
+      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+    }
 
     if (flashRef.current) {
       const yaw = yawRef.current, pitch = pitchRef.current;
@@ -1127,7 +1164,7 @@ function DayNightCycle() {
 }
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
-function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef, jumpYRef }: {
+function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef, jumpYRef, sprintRef }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
   yawRef: React.MutableRefObject<number>;
   pitchRef: React.MutableRefObject<number>;
@@ -1137,6 +1174,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
   encounterable: DinoId|null;
   flashlightOnRef: React.MutableRefObject<boolean>;
   jumpYRef: React.MutableRefObject<number>;
+  sprintRef: React.MutableRefObject<boolean>;
 }) {
   return (
     <>
@@ -1172,7 +1210,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
       <LavaFlowOnVolcano angle={Math.PI * 1.12}/>
       <LavaFlowOnVolcano angle={Math.PI * 1.42}/>
       <LavaFlowOnVolcano angle={Math.PI * 1.72}/>
-      <FPSCamera posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef}/>
+      <FPSCamera posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef} sprintRef={sprintRef}/>
     </>
   );
 }
@@ -1191,6 +1229,7 @@ export default function OpenWorld() {
   const lastNearbyKey    = useRef('');
   const lastEncounteR    = useRef<DinoId|null>(null);
   const flashlightOnRef   = useRef(true);
+  const sprintRef         = useRef(false);
   const staminaRef        = useRef(100);
   const jumpYRef          = useRef(0);
   const jumpVelRef        = useRef(0);
@@ -1273,6 +1312,7 @@ export default function OpenWorld() {
       if (sprinting) staminaRef.current = Math.max(0,   staminaRef.current - 0.4);
       else           staminaRef.current = Math.min(100, staminaRef.current + 0.18);
       if (++staminaFrameRef.current % 3 === 0) setStamina(Math.round(staminaRef.current));
+      sprintRef.current = sprinting;
       const spd = sprinting ? SPEED * 1.9 : SPEED;
 
       // ── Jump physics ──
@@ -1294,10 +1334,28 @@ export default function OpenWorld() {
         y = Math.max(3, Math.min(WORLD_MAX, y));
         if (dist(x, y, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R) { x=posRef.current.x; y=posRef.current.y; }
         posRef.current = { x, y };
-        const nb = new Set<DinoId>(); let enc: DinoId|null = null;
+        // ── Dino wander tick ──
+      for (const lair of LAIRS) {
+        if (getDinoStatus(lair.dinoId) !== 'remaining') continue;
+        const w = DINO_WANDER[lair.dinoId];
+        w.timer--;
+        if (w.timer <= 0) {
+          const ang = Math.random() * Math.PI * 2;
+          const r   = 4 + Math.random() * WANDER_R;
+          w.tx = Math.max(5, Math.min(WORLD_MAX-5, lair.x + Math.cos(ang) * r));
+          w.tz = Math.max(5, Math.min(WORLD_MAX-5, lair.y + Math.sin(ang) * r));
+          w.timer = 90 + Math.floor(Math.random() * 180);
+        }
+        const ddx = w.tx - w.x, ddz = w.tz - w.z;
+        const wd  = Math.hypot(ddx, ddz);
+        if (wd > 0.12) { w.x += (ddx/wd) * 0.05; w.z += (ddz/wd) * 0.05; }
+      }
+
+      const nb = new Set<DinoId>(); let enc: DinoId|null = null;
         for (const lair of LAIRS) {
           if (getDinoStatus(lair.dinoId) !== 'remaining') continue;
-          const d = dist(x, y, lair.x, lair.y);
+          const w = DINO_WANDER[lair.dinoId];
+          const d = dist(x, y, w.x, w.z);
           if (d < DETECT_RADIUS)    nb.add(lair.dinoId);
           if (d < ENCOUNTER_RADIUS) enc = lair.dinoId;
         }
@@ -1340,8 +1398,23 @@ export default function OpenWorld() {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'#040804', userSelect:'none', cursor:isDragging?'grabbing':'default' }}>
-      <Canvas camera={{ position:[85,EYE_HEIGHT,140], fov:78, near:0.05, far:500 }} gl={{ antialias:true, alpha:false }} style={{ position:'absolute', inset:0 }}>
-        <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef}/>
+      <style>{`
+        @keyframes shake {
+          0%,100%{transform:translate(0,0) rotate(0)}
+          10%{transform:translate(-5px,-4px) rotate(-0.8deg)}
+          20%{transform:translate(6px,5px) rotate(0.9deg)}
+          30%{transform:translate(-7px,2px) rotate(-0.6deg)}
+          40%{transform:translate(5px,-6px) rotate(0.7deg)}
+          50%{transform:translate(-4px,7px) rotate(-0.5deg)}
+          60%{transform:translate(7px,-3px) rotate(0.6deg)}
+          70%{transform:translate(-5px,5px) rotate(-0.4deg)}
+          80%{transform:translate(4px,-4px) rotate(0.3deg)}
+          90%{transform:translate(-3px,3px) rotate(-0.2deg)}
+        }
+      `}</style>
+      <Canvas camera={{ position:[85,EYE_HEIGHT,140], fov:78, near:0.05, far:500 }} gl={{ antialias:true, alpha:false }}
+        style={{ position:'absolute', inset:0, animation: encounterFlash ? 'shake 0.55s ease-out' : undefined }}>
+        <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef} sprintRef={sprintRef}/>
       </Canvas>
 
       {/* Danger vignette */}
