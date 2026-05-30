@@ -1005,12 +1005,13 @@ function CapturedMarker({ x, z, status }: { x: number; z: number; status: 'captu
 }
 
 // ─── FPS Camera + Flashlight ──────────────────────────────────────────────────
-function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef }: {
+function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef, jumpYRef }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
   yawRef: React.MutableRefObject<number>;
   pitchRef: React.MutableRefObject<number>;
   movingRef: React.MutableRefObject<boolean>;
   flashlightOnRef: React.MutableRefObject<boolean>;
+  jumpYRef: React.MutableRefObject<number>;
 }) {
   const { camera, scene } = useThree();
   const flashRef   = useRef<THREE.SpotLight>(null!);
@@ -1024,7 +1025,7 @@ function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef }: {
 
   useFrame(({ clock }) => {
     const bob = movingRef.current ? Math.sin(clock.getElapsedTime() * 8) * 0.07 : 0;
-    const px = posRef.current.x, pz = EYE_HEIGHT + bob, py = posRef.current.y;
+    const px = posRef.current.x, pz = EYE_HEIGHT + bob + jumpYRef.current, py = posRef.current.y;
     camera.position.set(px, pz, py);
     camera.rotation.y = yawRef.current;
     camera.rotation.x = pitchRef.current;
@@ -1126,7 +1127,7 @@ function DayNightCycle() {
 }
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
-function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef }: {
+function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef, jumpYRef }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
   yawRef: React.MutableRefObject<number>;
   pitchRef: React.MutableRefObject<number>;
@@ -1135,6 +1136,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
   nearbyDinos: Set<DinoId>;
   encounterable: DinoId|null;
   flashlightOnRef: React.MutableRefObject<boolean>;
+  jumpYRef: React.MutableRefObject<number>;
 }) {
   return (
     <>
@@ -1170,7 +1172,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
       <LavaFlowOnVolcano angle={Math.PI * 1.12}/>
       <LavaFlowOnVolcano angle={Math.PI * 1.42}/>
       <LavaFlowOnVolcano angle={Math.PI * 1.72}/>
-      <FPSCamera posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} flashlightOnRef={flashlightOnRef}/>
+      <FPSCamera posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef}/>
     </>
   );
 }
@@ -1188,17 +1190,34 @@ export default function OpenWorld() {
   const lastMouseRef     = useRef({ x: 0, y: 0 });
   const lastNearbyKey    = useRef('');
   const lastEncounteR    = useRef<DinoId|null>(null);
-  const flashlightOnRef  = useRef(true);
+  const flashlightOnRef   = useRef(true);
+  const staminaRef        = useRef(100);
+  const jumpYRef          = useRef(0);
+  const jumpVelRef        = useRef(0);
+  const onGroundRef       = useRef(true);
+  const staminaFrameRef   = useRef(0);
+  const startTimeRef      = useRef(Date.now());
+  const completionTimeRef = useRef<number|null>(null);
+  const timerIntervalRef  = useRef<number>(0);
+  const allDoneRef        = useRef(false);
 
   const [nearbyDinos,     setNearbyDinos]     = useState<Set<DinoId>>(new Set());
   const [encounterable,   setEncounterable]   = useState<DinoId|null>(null);
   const [encounterFlash,  setEncounterFlash]  = useState<DinoId|null>(null);
   const [isDragging,      setIsDragging]      = useState(false);
   const [flashlightOn,    setFlashlightOn]    = useState(true);
+  const [stamina,         setStamina]         = useState(100);
+  const [elapsed,         setElapsed]         = useState(0);
+  const [bestTime,        setBestTime]        = useState<number|null>(() => {
+    try { const s = localStorage.getItem('primalClash_bestTime'); return s ? parseInt(s) : null; } catch { return null; }
+  });
 
   const state         = ctx?.state;
   const capturedDinos = state?.capturedDinos ?? [];
   const fledDinos     = state?.huntFledDinos  ?? [];
+  const capturedCount = capturedDinos.length;
+  const allDone       = capturedCount + fledDinos.length >= LAIRS.length;
+  const fmtTime       = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   const getDinoStatus = useCallback((id: DinoId): DinoStatus => {
     if (capturedDinos.includes(id)) return 'captured';
@@ -1207,11 +1226,38 @@ export default function OpenWorld() {
   }, [capturedDinos, fledDinos]);
 
   useEffect(() => {
+    startTimeRef.current = Date.now();
+    timerIntervalRef.current = window.setInterval(() => {
+      if (!allDoneRef.current) setElapsed(s => s + 1);
+    }, 1000);
+    return () => clearInterval(timerIntervalRef.current);
+  }, []);
+
+  useEffect(() => {
+    allDoneRef.current = allDone;
+    if (allDone && completionTimeRef.current === null) {
+      completionTimeRef.current = elapsed;
+      clearInterval(timerIntervalRef.current);
+      try {
+        const prev = localStorage.getItem('primalClash_bestTime');
+        if (!prev || elapsed < parseInt(prev)) {
+          localStorage.setItem('primalClash_bestTime', String(elapsed));
+          setBestTime(elapsed);
+        }
+      } catch { /* */ }
+    }
+  }, [allDone, elapsed]);
+
+  useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
       if (e.key === 'f' || e.key === 'F') {
         flashlightOnRef.current = !flashlightOnRef.current;
         setFlashlightOn(flashlightOnRef.current);
+      }
+      if (e.key === ' ' && onGroundRef.current) {
+        jumpVelRef.current  = 0.38;
+        onGroundRef.current = false;
       }
     };
     const onUp   = (e: KeyboardEvent) => keysRef.current.delete(e.key);
@@ -1221,12 +1267,27 @@ export default function OpenWorld() {
       const keys = keysRef.current;
       let { x, y } = posRef.current;
       let moved = false;
+
+      // ── Sprint & stamina ──
+      const sprinting = keys.has('Shift') && staminaRef.current > 0;
+      if (sprinting) staminaRef.current = Math.max(0,   staminaRef.current - 0.4);
+      else           staminaRef.current = Math.min(100, staminaRef.current + 0.18);
+      if (++staminaFrameRef.current % 3 === 0) setStamina(Math.round(staminaRef.current));
+      const spd = sprinting ? SPEED * 1.9 : SPEED;
+
+      // ── Jump physics ──
+      if (!onGroundRef.current) {
+        jumpVelRef.current -= 0.022;
+        jumpYRef.current   += jumpVelRef.current;
+        if (jumpYRef.current <= 0) { jumpYRef.current = 0; jumpVelRef.current = 0; onGroundRef.current = true; }
+      }
+
       const fwdX=-Math.sin(yawRef.current), fwdZ=-Math.cos(yawRef.current);
       const rtX=Math.cos(yawRef.current),   rtZ=-Math.sin(yawRef.current);
-      if (keys.has('ArrowUp')    || keys.has('w') || keys.has('W')) { x+=fwdX*SPEED; y+=fwdZ*SPEED; moved=true; }
-      if (keys.has('ArrowDown')  || keys.has('s') || keys.has('S')) { x-=fwdX*SPEED; y-=fwdZ*SPEED; moved=true; }
-      if (keys.has('ArrowLeft')  || keys.has('a') || keys.has('A')) { x-=rtX*SPEED;  y-=rtZ*SPEED;  moved=true; }
-      if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) { x+=rtX*SPEED;  y+=rtZ*SPEED;  moved=true; }
+      if (keys.has('ArrowUp')    || keys.has('w') || keys.has('W')) { x+=fwdX*spd; y+=fwdZ*spd; moved=true; }
+      if (keys.has('ArrowDown')  || keys.has('s') || keys.has('S')) { x-=fwdX*spd; y-=fwdZ*spd; moved=true; }
+      if (keys.has('ArrowLeft')  || keys.has('a') || keys.has('A')) { x-=rtX*spd;  y-=rtZ*spd;  moved=true; }
+      if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) { x+=rtX*spd;  y+=rtZ*spd;  moved=true; }
       movingRef.current = moved;
       if (moved) {
         x = Math.max(3, Math.min(WORLD_MAX, x));
@@ -1275,15 +1336,27 @@ export default function OpenWorld() {
   };
 
   if (!ctx || !state) return null;
-  const capturedCount = capturedDinos.length;
-  const allDone       = capturedCount + fledDinos.length >= LAIRS.length;
-  const dinoName      = encounterable ? DINOSAURS[encounterable]?.name ?? encounterable : '';
+  const dinoName = encounterable ? DINOSAURS[encounterable]?.name ?? encounterable : '';
 
   return (
     <div style={{ position:'fixed', inset:0, background:'#040804', userSelect:'none', cursor:isDragging?'grabbing':'default' }}>
       <Canvas camera={{ position:[85,EYE_HEIGHT,140], fov:78, near:0.05, far:500 }} gl={{ antialias:true, alpha:false }} style={{ position:'absolute', inset:0 }}>
-        <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable} flashlightOnRef={flashlightOnRef}/>
+        <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef}/>
       </Canvas>
+
+      {/* Danger vignette */}
+      <AnimatePresence>
+        {(nearbyDinos.size > 0 || !!encounterable) && (
+          <motion.div key="vignette"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: encounterable ? [0.55, 0.88, 0.55] : [0.14, 0.36, 0.14] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: encounterable ? 0.55 : 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ position:'absolute', inset:0, zIndex:12, pointerEvents:'none',
+              background:'radial-gradient(ellipse at 50% 52%, transparent 36%, rgba(170,0,0,0.82) 100%)' }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Crosshair */}
       <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none', zIndex:10 }}>
@@ -1298,11 +1371,27 @@ export default function OpenWorld() {
       <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:20, padding:'10px 14px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', background:'linear-gradient(180deg,rgba(0,0,0,0.8) 0%,transparent 100%)', pointerEvents:'none' }}>
         <div>
           <div style={{ fontWeight:900, textTransform:'uppercase', letterSpacing:'0.1em', color:'#88dd44', fontSize:14, textShadow:'0 0 10px #44aa22' }}>🌿 WILD HUNT</div>
-          <div style={{ color:'#557733', fontSize:9, fontWeight:700, marginTop:2 }}>WASD to move · Click &amp; drag to look · [F] Flashlight: {flashlightOn ? '🔦 ON' : '⬛ OFF'}</div>
+          <div style={{ color:'#557733', fontSize:9, fontWeight:700, marginTop:2 }}>WASD · Shift sprint · Space jump · Drag look · [F] Flashlight {flashlightOn ? '🔦' : '⬛'}</div>
+          <div style={{ marginTop:5, display:'flex', alignItems:'center', gap:5 }}>
+            <span style={{ fontSize:8, color: stamina < 10 ? '#ff5533' : '#66aa44', fontWeight:700, width:46, textTransform:'uppercase' }}>
+              {stamina < 10 ? '⚡ Empty' : stamina < 40 ? '⚡ Low' : '⚡ Sprint'}
+            </span>
+            <div style={{ width:76, height:5, background:'rgba(0,0,0,0.55)', border:'1px solid #2a5a1a', borderRadius:3, overflow:'hidden' }}>
+              <div style={{ width:`${stamina}%`, height:'100%', transition:'width 0.1s, background 0.35s',
+                background: stamina > 60 ? '#44cc22' : stamina > 30 ? '#aacc22' : '#cc4422' }}/>
+            </div>
+          </div>
         </div>
-        <div style={{ background:'rgba(0,0,0,0.75)', border:'2px solid #44aa22', borderRadius:10, padding:'5px 12px', textAlign:'center' }}>
-          <div style={{ color:'#88dd44', fontSize:9, fontWeight:800, textTransform:'uppercase' }}>Captured</div>
-          <div style={{ color:'#aaffaa', fontSize:22, fontWeight:900, lineHeight:1 }}>{capturedCount}/{LAIRS.length}</div>
+        <div style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+          <div style={{ background:'rgba(0,0,0,0.75)', border:'2px solid #44aa22', borderRadius:10, padding:'5px 10px', textAlign:'center' }}>
+            <div style={{ color:'#88dd44', fontSize:8, fontWeight:800, textTransform:'uppercase' }}>Time</div>
+            <div style={{ color:'#aaffaa', fontSize:17, fontWeight:900, lineHeight:1.1, fontVariantNumeric:'tabular-nums' }}>{fmtTime(elapsed)}</div>
+            {bestTime !== null && <div style={{ color:'#557733', fontSize:7, marginTop:1 }}>Best {fmtTime(bestTime)}</div>}
+          </div>
+          <div style={{ background:'rgba(0,0,0,0.75)', border:'2px solid #44aa22', borderRadius:10, padding:'5px 12px', textAlign:'center' }}>
+            <div style={{ color:'#88dd44', fontSize:9, fontWeight:800, textTransform:'uppercase' }}>Captured</div>
+            <div style={{ color:'#aaffaa', fontSize:22, fontWeight:900, lineHeight:1 }}>{capturedCount}/{LAIRS.length}</div>
+          </div>
         </div>
       </div>
 
@@ -1351,7 +1440,15 @@ export default function OpenWorld() {
             style={{ background:'#0a1e07', border:'3px solid #44aa22', borderRadius:18, padding:'28px 36px', textAlign:'center' }}>
             <div style={{ fontSize:52 }}>🏆</div>
             <div style={{ fontSize:24, fontWeight:900, color:'#88ff44', textTransform:'uppercase', marginBottom:8 }}>Hunt Complete!</div>
-            <div style={{ fontSize:14, color:'#aaddaa', marginBottom:18 }}>Captured: {capturedCount} / {LAIRS.length}</div>
+            <div style={{ fontSize:14, color:'#aaddaa', marginBottom:6 }}>Captured: {capturedCount} / {LAIRS.length}</div>
+            <div style={{ fontSize:24, color:'#88ffaa', fontWeight:900, marginBottom:4, fontVariantNumeric:'tabular-nums' }}>⏱ {fmtTime(completionTimeRef.current ?? elapsed)}</div>
+            {bestTime !== null && (
+              <div style={{ fontSize:11, marginBottom:14,
+                color: (completionTimeRef.current !== null && completionTimeRef.current <= bestTime) ? '#ffdd44' : '#66aa66' }}>
+                {(completionTimeRef.current !== null && completionTimeRef.current <= bestTime) ? '🏅 New Best!' : `Best: ${fmtTime(bestTime)}`}
+              </div>
+            )}
+            {bestTime === null && <div style={{ marginBottom:14 }}/>}
             <button onClick={()=>ctx.dispatch({type:'RESET'})} style={{ padding:'11px 26px', background:'linear-gradient(135deg,#44aa22,#228811)', border:'2px solid #115500', borderRadius:10, color:'white', fontWeight:900, fontSize:15, cursor:'pointer' }}>Play Again</button>
           </motion.div>
         </div>
