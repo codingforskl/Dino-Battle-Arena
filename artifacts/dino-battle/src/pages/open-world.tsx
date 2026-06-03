@@ -129,6 +129,90 @@ const WATER_POOLS = [
   { x: 200, z: 244, rx: 12, rz: 7 },
 ];
 
+// ─── Stamina orb pickup positions ─────────────────────────────────────────────
+interface OrbDef { x: number; z: number; }
+const STAM_ORBS: OrbDef[] = (() => {
+  const rng = mkRng(555); const out: OrbDef[] = [];
+  for (let attempts = 0; attempts < 400 && out.length < 10; attempts++) {
+    const x = 15 + rng() * 268, z = 15 + rng() * 268;
+    if (dist(x, z, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R + 20) continue;
+    if (LAIRS.some(l => dist(x, z, l.x, l.y) < 18)) continue;
+    out.push({ x, z });
+  }
+  return out;
+})();
+
+// ─── Synthesized audio helpers (no asset files needed) ────────────────────────
+function getAudioCtx(ref: React.MutableRefObject<AudioContext|null>): AudioContext|null {
+  try {
+    if (!ref.current) ref.current = new (window.AudioContext || (window as unknown as {webkitAudioContext: typeof AudioContext}).webkitAudioContext)();
+    if (ref.current.state === 'suspended') ref.current.resume();
+    return ref.current;
+  } catch { return null; }
+}
+function playStep(ctx: AudioContext, vol = 0.06) {
+  const len = Math.floor(ctx.sampleRate * 0.026);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 1.8);
+  const src = ctx.createBufferSource();
+  const filt = ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = 180; filt.Q.value = 0.55;
+  const gain = ctx.createGain(); gain.gain.value = vol;
+  src.buffer = buf; src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+  src.start();
+}
+function playHeartbeat(ctx: AudioContext, intensity: number) {
+  const now = ctx.currentTime;
+  [0, 0.12].forEach((delay, i) => {
+    const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = 42 + i * 9;
+    g.gain.setValueAtTime(0, now + delay);
+    g.gain.linearRampToValueAtTime(0.30 * intensity, now + delay + 0.014);
+    g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.20);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now + delay); osc.stop(now + delay + 0.25);
+  });
+}
+function playEncounterSting(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator(); const g = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(55, now);
+  osc.frequency.exponentialRampToValueAtTime(220, now + 0.45);
+  g.gain.setValueAtTime(0.45, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+  osc.connect(g); g.connect(ctx.destination); osc.start(now); osc.stop(now + 0.9);
+  const len2 = Math.floor(ctx.sampleRate * 0.28);
+  const buf2 = ctx.createBuffer(1, len2, ctx.sampleRate);
+  const d2 = buf2.getChannelData(0);
+  for (let i = 0; i < len2; i++) d2[i] = (Math.random()*2-1) * Math.pow(1 - i/len2, 0.55);
+  const src2 = ctx.createBufferSource(); const ng = ctx.createGain(); ng.gain.value = 0.22;
+  src2.buffer = buf2; src2.connect(ng); ng.connect(ctx.destination); src2.start(now);
+}
+function playCaptureChime(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+    const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.type = 'triangle'; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, now + i*0.1);
+    g.gain.linearRampToValueAtTime(0.18, now + i*0.1 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now + i*0.1 + 0.26);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now + i*0.1); osc.stop(now + i*0.1 + 0.3);
+  });
+}
+function playOrbPickup(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  [880, 1108].forEach((freq, i) => {
+    const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, now + i*0.07);
+    g.gain.linearRampToValueAtTime(0.15, now + i*0.07 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, now + i*0.07 + 0.18);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(now + i*0.07); osc.stop(now + i*0.07 + 0.22);
+  });
+}
+
 // ─── Dino wandering state (mutable, updated each tick) ────────────────────────
 const WANDER_R = 14;
 interface WanderState { x:number; z:number; tx:number; tz:number; timer:number; }
@@ -217,6 +301,26 @@ function Tree({ x, z, h, dark }: TreeDef) {
       <mesh position={[0, cS + h*0.32, 0]} material={lMat}><coneGeometry args={[h*0.26, h*0.44, 8]}/></mesh>
       <mesh position={[0, cS + h*0.56, 0]} material={lMat}><coneGeometry args={[h*0.17, h*0.32, 7]}/></mesh>
       <mesh position={[0, cS + h*0.74, 0]} material={lMat}><coneGeometry args={[h*0.09, h*0.22, 6]}/></mesh>
+    </group>
+  );
+}
+
+// ─── Stamina Orb ──────────────────────────────────────────────────────────────
+function StaminaOrb({ x, z }: OrbDef) {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  const matRef  = useRef<THREE.MeshStandardMaterial>(null!);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (meshRef.current) { meshRef.current.position.y = 1.3 + Math.sin(t * 2.1 + x) * 0.28; meshRef.current.rotation.y = t * 1.5; }
+    if (matRef.current)  matRef.current.emissiveIntensity = 1.6 + Math.sin(t * 3.2 + x) * 0.9;
+  });
+  return (
+    <group position={[x, 1.3, z]}>
+      <mesh ref={meshRef}>
+        <octahedronGeometry args={[0.44, 0]}/>
+        <meshStandardMaterial ref={matRef} color="#22ff88" emissive="#00ff55" emissiveIntensity={2} roughness={0.1} metalness={0.3}/>
+      </mesh>
+      <pointLight position={[0,0,0]} intensity={5} color="#22ff88" distance={11} decay={2}/>
     </group>
   );
 }
@@ -1043,8 +1147,11 @@ function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef, jumpY
   sprintRef: React.MutableRefObject<boolean>;
 }) {
   const { camera, scene } = useThree();
-  const flashRef   = useRef<THREE.SpotLight>(null!);
-  const targetObj  = useRef(new THREE.Object3D());
+  const flashRef       = useRef<THREE.SpotLight>(null!);
+  const targetObj      = useRef(new THREE.Object3D());
+  const prevJumpYRef   = useRef(0);
+  const fovSquishRef   = useRef(0);
+  const bobPhaseRef    = useRef(0);
 
   useEffect(() => {
     camera.rotation.order = 'YXZ';
@@ -1053,15 +1160,26 @@ function FPSCamera({ posRef, yawRef, pitchRef, movingRef, flashlightOnRef, jumpY
   }, [camera, scene]);
 
   useFrame(({ clock }) => {
-    const bob = movingRef.current ? Math.sin(clock.getElapsedTime() * 8) * 0.07 : 0;
+    const t = clock.getElapsedTime();
+    const speed = movingRef.current ? (sprintRef.current ? 1.45 : 1.0) : 0;
+    bobPhaseRef.current += speed * 0.09;
+    const bob = movingRef.current
+      ? Math.sin(bobPhaseRef.current * 8) * 0.065 + Math.sin(bobPhaseRef.current * 4.1) * 0.028
+      : Math.sin(t * 1.2) * 0.008; // gentle idle sway
     const px = posRef.current.x, pz = EYE_HEIGHT + bob + jumpYRef.current, py = posRef.current.y;
     camera.position.set(px, pz, py);
     camera.rotation.y = yawRef.current;
     camera.rotation.x = pitchRef.current;
 
-    // ── FOV pulse: widens when sprinting, narrows on landing ──
-    const targetFov = sprintRef.current ? 91 : 78;
-    const fovSpeed  = sprintRef.current ? 0.12 : 0.08;
+    // ── Landing squish — brief FOV dip when hitting the ground ──
+    const wasAirborne = prevJumpYRef.current > 0.05;
+    prevJumpYRef.current = jumpYRef.current;
+    if (wasAirborne && jumpYRef.current < 0.02) fovSquishRef.current = -9;
+    if (fovSquishRef.current < 0) fovSquishRef.current = Math.min(0, fovSquishRef.current + 0.55);
+
+    // ── FOV pulse: widens when sprinting, squishes on landing ──
+    const targetFov = sprintRef.current ? 91 : 78 + fovSquishRef.current;
+    const fovSpeed  = sprintRef.current ? 0.12 : 0.09;
     if (Math.abs((camera as THREE.PerspectiveCamera).fov - targetFov) > 0.05) {
       (camera as THREE.PerspectiveCamera).fov = THREE.MathUtils.lerp((camera as THREE.PerspectiveCamera).fov, targetFov, fovSpeed);
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
@@ -1164,7 +1282,7 @@ function DayNightCycle() {
 }
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
-function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef, jumpYRef, sprintRef }: {
+function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearbyDinos, encounterable, flashlightOnRef, jumpYRef, sprintRef, collectedOrbs }: {
   posRef: React.MutableRefObject<{x:number;y:number}>;
   yawRef: React.MutableRefObject<number>;
   pitchRef: React.MutableRefObject<number>;
@@ -1175,6 +1293,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
   flashlightOnRef: React.MutableRefObject<boolean>;
   jumpYRef: React.MutableRefObject<number>;
   sprintRef: React.MutableRefObject<boolean>;
+  collectedOrbs: Set<number>;
 }) {
   return (
     <>
@@ -1190,6 +1309,7 @@ function WorldScene({ posRef, yawRef, pitchRef, movingRef, getDinoStatus, nearby
       {GRASS_TUFTS.map((g,i) => <GrassTuft key={i} {...g}/>)}
       {WORLD_TREES.map((t,i) => <Tree key={i} {...t}/>)}
       {FIREFLY_DEFS.map((f,i) => <Firefly key={i} {...f}/>)}
+      {STAM_ORBS.map((orb, i) => !collectedOrbs.has(i) && <StaminaOrb key={i} {...orb}/>)}
       {LAIRS.map(lair => (
         <ScaryDino key={lair.dinoId} lair={lair} status={getDinoStatus(lair.dinoId)}
           isNearby={nearbyDinos.has(lair.dinoId)} isEncounterable={encounterable===lair.dinoId}
@@ -1228,6 +1348,7 @@ export default function OpenWorld() {
   const lastMouseRef     = useRef({ x: 0, y: 0 });
   const lastNearbyKey    = useRef('');
   const lastEncounteR    = useRef<DinoId|null>(null);
+  const containerRef      = useRef<HTMLDivElement>(null);
   const flashlightOnRef   = useRef(true);
   const sprintRef         = useRef(false);
   const staminaRef        = useRef(100);
@@ -1239,14 +1360,23 @@ export default function OpenWorld() {
   const completionTimeRef = useRef<number|null>(null);
   const timerIntervalRef  = useRef<number>(0);
   const allDoneRef        = useRef(false);
+  const audioCtxRef       = useRef<AudioContext|null>(null);
+  const heartbeatLastRef  = useRef(0);
+  const stepFrameRef      = useRef(0);
+  const isLockedRef       = useRef(false);
+  const collectedOrbsRef  = useRef(new Set<number>());
+  const prevCapCountRef   = useRef(0);
 
   const [nearbyDinos,     setNearbyDinos]     = useState<Set<DinoId>>(new Set());
   const [encounterable,   setEncounterable]   = useState<DinoId|null>(null);
   const [encounterFlash,  setEncounterFlash]  = useState<DinoId|null>(null);
   const [isDragging,      setIsDragging]      = useState(false);
+  const [isLocked,        setIsLocked]        = useState(false);
   const [flashlightOn,    setFlashlightOn]    = useState(true);
   const [stamina,         setStamina]         = useState(100);
   const [elapsed,         setElapsed]         = useState(0);
+  const [orbFlash,        setOrbFlash]        = useState<string|null>(null);
+  const [collectedOrbs,   setCollectedOrbs]   = useState<Set<number>>(new Set());
   const [bestTime,        setBestTime]        = useState<number|null>(() => {
     try { const s = localStorage.getItem('primalClash_bestTime'); return s ? parseInt(s) : null; } catch { return null; }
   });
@@ -1329,11 +1459,36 @@ export default function OpenWorld() {
       if (keys.has('ArrowLeft')  || keys.has('a') || keys.has('A')) { x-=rtX*spd;  y-=rtZ*spd;  moved=true; }
       if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) { x+=rtX*spd;  y+=rtZ*spd;  moved=true; }
       movingRef.current = moved;
+
+      // ── Footstep audio ──
+      if (moved) {
+        if (++stepFrameRef.current % 14 === 0) {
+          const ac = getAudioCtx(audioCtxRef);
+          if (ac) playStep(ac, sprinting ? 0.09 : 0.055);
+        }
+      } else { stepFrameRef.current = 0; }
+
       if (moved) {
         x = Math.max(3, Math.min(WORLD_MAX, x));
         y = Math.max(3, Math.min(WORLD_MAX, y));
         if (dist(x, y, VOLCANO_X, VOLCANO_Z) < VOLCANO_COL_R) { x=posRef.current.x; y=posRef.current.y; }
         posRef.current = { x, y };
+
+        // ── Stamina orb pickup ──
+        for (let oi = 0; oi < STAM_ORBS.length; oi++) {
+          if (collectedOrbsRef.current.has(oi)) continue;
+          const orb = STAM_ORBS[oi];
+          if (dist(x, y, orb.x, orb.z) < 3.8) {
+            collectedOrbsRef.current.add(oi);
+            staminaRef.current = Math.min(100, staminaRef.current + 50);
+            const ac = getAudioCtx(audioCtxRef);
+            if (ac) playOrbPickup(ac);
+            setCollectedOrbs(new Set(collectedOrbsRef.current));
+            setOrbFlash('+⚡50');
+            setTimeout(() => setOrbFlash(null), 1600);
+          }
+        }
+
         // ── Dino wander tick ──
       for (const lair of LAIRS) {
         if (getDinoStatus(lair.dinoId) !== 'remaining') continue;
@@ -1362,6 +1517,17 @@ export default function OpenWorld() {
         const nbKey = [...nb].sort().join(',');
         if (nbKey !== lastNearbyKey.current) { lastNearbyKey.current=nbKey; setNearbyDinos(new Set(nb)); }
         if (enc   !== lastEncounteR.current) { lastEncounteR.current=enc;   setEncounterable(enc); }
+
+        // ── Danger heartbeat audio ──
+        if (nb.size > 0 || enc) {
+          const beatInterval = enc ? 520 : 1100;
+          const now = Date.now();
+          if (now - heartbeatLastRef.current > beatInterval) {
+            heartbeatLastRef.current = now;
+            const ac = getAudioCtx(audioCtxRef);
+            if (ac) playHeartbeat(ac, enc ? 1.0 : 0.5);
+          }
+        }
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -1370,25 +1536,66 @@ export default function OpenWorld() {
   }, [getDinoStatus]);
 
   useEffect(() => {
-    const onDown = (e: MouseEvent) => { if (e.button!==0 && e.button!==2) return; isDraggingRef.current=true; lastMouseRef.current={x:e.clientX,y:e.clientY}; setIsDragging(true); };
+    const onLockChange = () => {
+      const locked = !!document.pointerLockElement;
+      isLockedRef.current = locked; setIsLocked(locked);
+      if (locked) { isDraggingRef.current = true; setIsDragging(true); }
+      else         { isDraggingRef.current = false; setIsDragging(false); }
+    };
+    document.addEventListener('pointerlockchange', onLockChange);
+    const onDown = (e: MouseEvent) => {
+      getAudioCtx(audioCtxRef); // unlock AudioContext on first user gesture
+      if (!isLockedRef.current) {
+        try { containerRef.current?.requestPointerLock(); } catch { /* unsupported */ }
+      }
+      if (e.button !== 0 && e.button !== 2) return;
+      isDraggingRef.current = true; lastMouseRef.current = { x:e.clientX, y:e.clientY }; setIsDragging(true);
+    };
     const onMove = (e: MouseEvent) => {
+      if (isLockedRef.current) {
+        yawRef.current   -= e.movementX * MOUSE_SENS;
+        pitchRef.current  = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, pitchRef.current - e.movementY * MOUSE_SENS));
+        return;
+      }
       if (!isDraggingRef.current) return;
       yawRef.current  -= (e.clientX-lastMouseRef.current.x)*MOUSE_SENS;
       pitchRef.current = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, pitchRef.current-(e.clientY-lastMouseRef.current.y)*MOUSE_SENS));
       lastMouseRef.current = { x:e.clientX, y:e.clientY };
     };
-    const onUp   = (e: MouseEvent) => { if (e.button!==0 && e.button!==2) return; isDraggingRef.current=false; setIsDragging(false); };
-    const noCtx  = (e: Event) => e.preventDefault();
+    const onUp = (e: MouseEvent) => {
+      if (e.button !== 0 && e.button !== 2) return;
+      if (!isLockedRef.current) { isDraggingRef.current = false; setIsDragging(false); }
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && isLockedRef.current) document.exitPointerLock?.(); };
+    const noCtx = (e: Event) => e.preventDefault();
     window.addEventListener('mousedown',   onDown);
     window.addEventListener('mousemove',   onMove);
     window.addEventListener('mouseup',     onUp);
+    window.addEventListener('keydown',     onKey);
     window.addEventListener('contextmenu', noCtx);
-    return () => { window.removeEventListener('mousedown',onDown); window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); window.removeEventListener('contextmenu',noCtx); };
+    return () => {
+      document.removeEventListener('pointerlockchange', onLockChange);
+      window.removeEventListener('mousedown',   onDown);
+      window.removeEventListener('mousemove',   onMove);
+      window.removeEventListener('mouseup',     onUp);
+      window.removeEventListener('keydown',     onKey);
+      window.removeEventListener('contextmenu', noCtx);
+    };
   }, []);
+
+  useEffect(() => {
+    if (capturedCount > prevCapCountRef.current) {
+      const ac = getAudioCtx(audioCtxRef);
+      if (ac) playCaptureChime(ac);
+    }
+    prevCapCountRef.current = capturedCount;
+  }, [capturedCount]);
 
   const handleEngage = () => {
     if (!encounterable) return;
     const id = encounterable;
+    const ac = getAudioCtx(audioCtxRef);
+    if (ac) playEncounterSting(ac);
     setEncounterFlash(id);
     setTimeout(() => { setEncounterFlash(null); ctx?.dispatch({ type:'ENCOUNTER_DINO', wildDinoId:id }); }, 900);
   };
@@ -1396,8 +1603,13 @@ export default function OpenWorld() {
   if (!ctx || !state) return null;
   const dinoName = encounterable ? DINOSAURS[encounterable]?.name ?? encounterable : '';
 
+  const finalTime = completionTimeRef.current ?? elapsed;
+  const stars = capturedCount === LAIRS.length && finalTime < 120 ? 3
+              : capturedCount >= LAIRS.length - 1 && finalTime < 240 ? 2 : 1;
+
   return (
-    <div style={{ position:'fixed', inset:0, background:'#040804', userSelect:'none', cursor:isDragging?'grabbing':'default' }}>
+    <div ref={containerRef} style={{ position:'fixed', inset:0, background:'#040804', userSelect:'none',
+      cursor: isLocked ? 'none' : isDragging ? 'grabbing' : 'crosshair' }}>
       <style>{`
         @keyframes shake {
           0%,100%{transform:translate(0,0) rotate(0)}
@@ -1411,11 +1623,27 @@ export default function OpenWorld() {
           80%{transform:translate(4px,-4px) rotate(0.3deg)}
           90%{transform:translate(-3px,3px) rotate(-0.2deg)}
         }
+        @keyframes orbPop {
+          0%{opacity:0;transform:translateY(0) scale(0.7)}
+          20%{opacity:1;transform:translateY(-12px) scale(1.1)}
+          80%{opacity:1;transform:translateY(-30px) scale(1)}
+          100%{opacity:0;transform:translateY(-46px) scale(0.9)}
+        }
       `}</style>
       <Canvas camera={{ position:[85,EYE_HEIGHT,140], fov:78, near:0.05, far:500 }} gl={{ antialias:true, alpha:false }}
         style={{ position:'absolute', inset:0, animation: encounterFlash ? 'shake 0.55s ease-out' : undefined }}>
-        <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef} sprintRef={sprintRef}/>
+        <WorldScene posRef={posRef} yawRef={yawRef} pitchRef={pitchRef} movingRef={movingRef} getDinoStatus={getDinoStatus} nearbyDinos={nearbyDinos} encounterable={encounterable} flashlightOnRef={flashlightOnRef} jumpYRef={jumpYRef} sprintRef={sprintRef} collectedOrbs={collectedOrbs}/>
       </Canvas>
+
+      {/* Pointer lock — click to play overlay */}
+      {!isLocked && !allDone && !encounterFlash && (
+        <div style={{ position:'absolute', inset:0, zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
+          <div style={{ background:'rgba(0,10,0,0.72)', border:'2px solid rgba(80,200,80,0.45)', borderRadius:14, padding:'13px 26px', textAlign:'center', backdropFilter:'blur(4px)' }}>
+            <div style={{ fontSize:13, fontWeight:900, color:'#88ff88', textTransform:'uppercase', letterSpacing:'0.1em' }}>🖱 Click to lock mouse · free-look FPS</div>
+            <div style={{ fontSize:9, color:'rgba(150,220,150,0.65)', marginTop:4, fontWeight:700 }}>WASD move · Shift sprint · Space jump · F flashlight · Esc unlock</div>
+          </div>
+        </div>
+      )}
 
       {/* Danger vignette */}
       <AnimatePresence>
@@ -1444,7 +1672,7 @@ export default function OpenWorld() {
       <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:20, padding:'10px 14px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', background:'linear-gradient(180deg,rgba(0,0,0,0.8) 0%,transparent 100%)', pointerEvents:'none' }}>
         <div>
           <div style={{ fontWeight:900, textTransform:'uppercase', letterSpacing:'0.1em', color:'#88dd44', fontSize:14, textShadow:'0 0 10px #44aa22' }}>🌿 WILD HUNT</div>
-          <div style={{ color:'#557733', fontSize:9, fontWeight:700, marginTop:2 }}>WASD · Shift sprint · Space jump · Drag look · [F] Flashlight {flashlightOn ? '🔦' : '⬛'}</div>
+          <div style={{ color:'#557733', fontSize:9, fontWeight:700, marginTop:2 }}>WASD · Shift sprint · Space jump · {isLocked ? 'Mouse look (Esc unlock)' : 'Click canvas / drag look'} · [F] Flashlight {flashlightOn ? '🔦' : '⬛'}</div>
           <div style={{ marginTop:5, display:'flex', alignItems:'center', gap:5 }}>
             <span style={{ fontSize:8, color: stamina < 10 ? '#ff5533' : '#66aa44', fontWeight:700, width:46, textTransform:'uppercase' }}>
               {stamina < 10 ? '⚡ Empty' : stamina < 40 ? '⚡ Low' : '⚡ Sprint'}
@@ -1506,23 +1734,54 @@ export default function OpenWorld() {
         )}
       </AnimatePresence>
 
+      {/* Orb pickup flash */}
+      {orbFlash && (
+        <div style={{ position:'absolute', top:'50%', left:'50%', zIndex:35, transform:'translate(-50%,-50%)', pointerEvents:'none',
+          fontSize:22, fontWeight:900, color:'#44ffaa', textShadow:'0 0 12px #00ff88',
+          animation:'orbPop 1.5s ease-out forwards' }}>
+          {orbFlash}
+        </div>
+      )}
+
       {/* Hunt complete */}
       {allDone && !encounterFlash && (
-        <div style={{ position:'absolute', inset:0, zIndex:40, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <motion.div initial={{scale:0.7}} animate={{scale:1}} transition={{type:'spring',stiffness:280}}
-            style={{ background:'#0a1e07', border:'3px solid #44aa22', borderRadius:18, padding:'28px 36px', textAlign:'center' }}>
-            <div style={{ fontSize:52 }}>🏆</div>
-            <div style={{ fontSize:24, fontWeight:900, color:'#88ff44', textTransform:'uppercase', marginBottom:8 }}>Hunt Complete!</div>
-            <div style={{ fontSize:14, color:'#aaddaa', marginBottom:6 }}>Captured: {capturedCount} / {LAIRS.length}</div>
-            <div style={{ fontSize:24, color:'#88ffaa', fontWeight:900, marginBottom:4, fontVariantNumeric:'tabular-nums' }}>⏱ {fmtTime(completionTimeRef.current ?? elapsed)}</div>
+        <div style={{ position:'absolute', inset:0, zIndex:40, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <motion.div initial={{scale:0.7,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:'spring',stiffness:260,damping:22}}
+            style={{ background:'linear-gradient(160deg,#0a1e07,#061204)', border:'3px solid #44aa22', borderRadius:20, padding:'30px 40px', textAlign:'center', minWidth:280 }}>
+            <motion.div initial={{y:-10,opacity:0}} animate={{y:0,opacity:1}} transition={{delay:0.2}} style={{ fontSize:56, lineHeight:1 }}>
+              {stars===3?'🏆':stars===2?'🥈':'🥉'}
+            </motion.div>
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.35}}
+              style={{ display:'flex', justifyContent:'center', gap:6, margin:'8px 0 4px' }}>
+              {[1,2,3].map(n => (
+                <motion.span key={n} initial={{scale:0,rotate:-20}} animate={{scale:1,rotate:0}}
+                  transition={{delay:0.4+n*0.12,type:'spring',stiffness:300}}
+                  style={{ fontSize:28, filter: n<=stars?'none':'grayscale(1) opacity(0.25)' }}>⭐</motion.span>
+              ))}
+            </motion.div>
+            <div style={{ fontSize:11, color:'#668844', marginBottom:14, fontWeight:700 }}>
+              {stars===3?'PERFECT RUN!':stars===2?'GREAT HUNT':'HUNT COMPLETE'}
+            </div>
+            <div style={{ fontSize:14, color:'#aaddaa', marginBottom:4 }}>
+              Captured: <strong style={{color:'#88ff88'}}>{capturedCount}</strong> / {LAIRS.length}
+              {fledDinos.length>0 && <span style={{color:'#ff8866',marginLeft:8}}>({fledDinos.length} fled)</span>}
+            </div>
+            <div style={{ fontSize:26, color:'#88ffaa', fontWeight:900, marginBottom:4, fontVariantNumeric:'tabular-nums' }}>
+              ⏱ {fmtTime(finalTime)}
+            </div>
             {bestTime !== null && (
-              <div style={{ fontSize:11, marginBottom:14,
-                color: (completionTimeRef.current !== null && completionTimeRef.current <= bestTime) ? '#ffdd44' : '#66aa66' }}>
-                {(completionTimeRef.current !== null && completionTimeRef.current <= bestTime) ? '🏅 New Best!' : `Best: ${fmtTime(bestTime)}`}
+              <div style={{ fontSize:11, marginBottom:16,
+                color: finalTime <= bestTime ? '#ffdd44' : '#557733' }}>
+                {finalTime <= bestTime ? '🏅 New Best Time!' : `Best: ${fmtTime(bestTime)}`}
               </div>
             )}
-            {bestTime === null && <div style={{ marginBottom:14 }}/>}
-            <button onClick={()=>ctx.dispatch({type:'RESET'})} style={{ padding:'11px 26px', background:'linear-gradient(135deg,#44aa22,#228811)', border:'2px solid #115500', borderRadius:10, color:'white', fontWeight:900, fontSize:15, cursor:'pointer' }}>Play Again</button>
+            {bestTime === null && <div style={{ marginBottom:16 }}/>}
+            <div style={{ fontSize:9, color:'#446622', marginBottom:14, lineHeight:1.6 }}>
+              ⭐⭐⭐ All 5 + under 2min &nbsp;|&nbsp; ⭐⭐ 4+ + under 4min &nbsp;|&nbsp; ⭐ Any
+            </div>
+            <button onClick={()=>ctx.dispatch({type:'RESET'})} style={{ padding:'12px 30px', background:'linear-gradient(135deg,#44aa22,#228811)', border:'2px solid #115500', borderRadius:12, color:'white', fontWeight:900, fontSize:15, cursor:'pointer', boxShadow:'0 4px 0 #113300,0 0 20px rgba(80,200,40,0.35)' }}>
+              🔄 Hunt Again
+            </button>
           </motion.div>
         </div>
       )}
